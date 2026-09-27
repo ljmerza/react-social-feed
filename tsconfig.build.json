@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "dist"
+  },
+  "include": ["src"],
+  "exclude": [
+    "dist",
+    "node_modules",
+    "src/stories",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx"
+  ]
+}

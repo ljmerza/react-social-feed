@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    permissions:
+      contents: read
+    uses: ljmerza/misc-actions/.github/workflows/node-tests.yml@v2
+    with:
+      node-version: "22"
+      test-command: "npm run test:coverage"
+      codecov-flags: library
+    secrets: inherit

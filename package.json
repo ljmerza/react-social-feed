@@ -1,0 +1,99 @@
+{
+  "name": "react-social-feed",
+  "version": "0.1.0",
+  "description": "Headless, composable React primitives for social feed posts (media, likes, share, comments) with an optional virtualized feed.",
+  "keywords": [
+    "react",
+    "social",
+    "feed",
+    "post",
+    "headless",
+    "components",
+    "virtualized",
+    "typescript"
+  ],
+  "license": "MIT",
+  "author": "Leonardo Merza",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ljmerza/react-social-feed.git"
+  },
+  "homepage": "https://github.com/ljmerza/react-social-feed#readme",
+  "bugs": {
+    "url": "https://github.com/ljmerza/react-social-feed/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./virtual": {
+      "types": "./dist/virtual/index.d.ts",
+      "import": "./dist/virtual.mjs",
+      "require": "./dist/virtual.cjs"
+    },
+    "./styles.css": "./dist/react-social-feed.css",
+    "./package.json": "./package.json"
+  },
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "storybook dev -p 6006",
+    "build": "vite build && tsc --project tsconfig.build.json --emitDeclarationOnly",
+    "prepublishOnly": "npm run build",
+    "preview": "storybook build",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "storybook": "storybook dev -p 6006",
+    "storybook:build": "storybook build"
+  },
+  "peerDependencies": {
+    "@tanstack/react-virtual": "^3.10.0",
+    "react": "^18.2.0 || ^19.0.0",
+    "react-dom": "^18.2.0 || ^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@tanstack/react-virtual": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@storybook/addon-essentials": "^8.6.14",
+    "@storybook/react": "^8.6.18",
+    "@storybook/react-vite": "^8.6.18",
+    "@storybook/test": "^8.6.18",
+    "@tanstack/react-virtual": "^3.14.13",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^22.20.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "@vitest/coverage-v8": "^3.2.7",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^15.15.0",
+    "jsdom": "^27.4.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "storybook": "^8.6.18",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.70.1",
+    "vite": "^6.4.3",
+    "vitest": "^3.2.7"
+  }
+}
