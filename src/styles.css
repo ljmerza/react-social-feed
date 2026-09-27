@@ -415,6 +415,46 @@
   margin-right: 0.25rem;
 }
 
+.rsf-post__comment-reply,
+.rsf-post__replying-cancel {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--rsf-color-text-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rsf-post__comment-reply {
+  margin-left: 0.5rem;
+}
+
+.rsf-post__comment-reply:hover,
+.rsf-post__replying-cancel:hover {
+  color: var(--rsf-color-text);
+}
+
+/* Replies sit one level under their top-level comment. */
+.rsf-post__comment-replies {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin: 0.375rem 0 0;
+  padding: 0 0 0 0.75rem;
+  border-left: 2px solid var(--rsf-color-border);
+  list-style: none;
+}
+
+.rsf-post__replying {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--rsf-color-text-muted);
+  font-size: 0.8rem;
+}
+
 .rsf-post__comment-form {
   display: flex;
   align-items: center;

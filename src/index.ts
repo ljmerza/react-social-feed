@@ -1,7 +1,13 @@
 import './styles.css';
 
 export type { ShareStatus, SocialAuthor, SocialComment, SocialMedia, SocialPost } from './types';
-export { usePostState, type PostState, type UsePostStateOptions } from './usePostState';
+export {
+  usePostState,
+  type CommentSubmitOptions,
+  type PostState,
+  type ReplyTarget,
+  type UsePostStateOptions
+} from './usePostState';
 export { usePostContext, PostContextProvider, type PostContextProviderProps } from './context/PostContext';
 export {
   usePostIcons,
