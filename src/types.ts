@@ -27,6 +27,11 @@ export interface SocialComment {
   author: SocialAuthor;
   text: string;
   createdAt?: string | Date;
+  /**
+   * Id of the comment this one replies to. Replies render one level deep under
+   * their top-level comment; a reply to a reply joins the same thread.
+   */
+  parentId?: string;
 }
 
 export interface SocialPost {

@@ -99,7 +99,13 @@ interface SocialPost {
   likeCount: number;
   liked: boolean;       // has the current viewer liked it
   commentCount?: number; // may exceed comments.length when only a preview is loaded
-  comments?: Array<{ id: string; author: { name: string }; text: string; createdAt?: string | Date }>;
+  comments?: Array<{
+    id: string;
+    author: { name: string };
+    text: string;
+    createdAt?: string | Date;
+    parentId?: string; // replies render one level under their top-level comment
+  }>;
   shareUrl?: string;
 }
 ```
@@ -114,7 +120,7 @@ Every handler is optional. The state lives in `PostRoot` (which `FeedPost` wraps
 | Prop | What it does |
 |---|---|
 | `onLikeChange(liked, post)` | The heart updates immediately. Return a promise and a rejection rolls the like back. When the `post` prop changes (a refetch or cache update), local state resyncs from it. |
-| `onCommentSubmit(text, post)` | Turns on the comment form. Text arrives trimmed. Resolve to clear the input; reject to keep the draft. |
+| `onCommentSubmit(text, post, { parentId })` | Turns on the comment form and each comment's Reply button. Text arrives trimmed. Resolve to clear the input; reject to keep the draft. Replies carry the top-level comment's `parentId`; a reply to a reply joins that same thread. The form starts a reply by tagging the author (`@Name `). |
 | `onCommentClick(post)` | Replaces the comment button's default of expanding the comments and focusing the input, e.g. to open a modal. |
 | `onCommentsExpandedChange(expanded, post)` | Fires when "View all N comments" is toggled, so you can fetch the full thread. |
 | `onShare(post)` | Custom share. Without it the button uses the Web Share API with `post.shareUrl`, falls back to copying the link, and is disabled when there is no URL. |
@@ -207,9 +213,9 @@ import {
 | `PostShareButton` | Icon only. Render-prop children get the share status. |
 | `PostLikeCount` | A separate "N likes" line for layouts that hide the count on the button. `format(count, liked)`; return `null` to hide. |
 | `PostCaption` | Caption. `showAuthor` puts the author's name in front. |
-| `PostComments` | The newest `previewCount` comments plus a "View all" toggle. `renderComment` and label props are available. |
-| `PostComment` | A single comment row. |
-| `PostCommentForm` | Input and send button. Renders nothing without `onCommentSubmit`. |
+| `PostComments` | The newest `previewCount` comments plus a "View all" toggle, with replies nested one level under their top-level comment. `renderComment` and label props (`replyLabel`, …) are available. |
+| `PostComment` | A single comment row, with a Reply button when commenting is on. |
+| `PostCommentForm` | Input and send button, plus a "Replying to Name · Cancel" line while replying (Escape also cancels). Renders nothing without `onCommentSubmit`. |
 
 To drop the `<article>` wrapper, call `usePostState(options)` yourself and pass
 the result to `PostContextProvider`. `usePostContext()` gives any custom

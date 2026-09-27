@@ -1,5 +1,19 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
-import type { ShareStatus, SocialPost } from './types';
+import type { ShareStatus, SocialAuthor, SocialComment, SocialPost } from './types';
+import { threadRootId } from './utils';
+
+export interface CommentSubmitOptions {
+  /** Top-level comment this is a reply to; absent for a new top-level comment. */
+  parentId?: string;
+}
+
+/** The comment the viewer is replying to. */
+export interface ReplyTarget {
+  /** Top-level comment the reply is filed under. */
+  parentId: string;
+  /** Author being replied to; the form starts the draft by tagging them. */
+  author: SocialAuthor;
+}
 
 export interface UsePostStateOptions {
   post: SocialPost;
@@ -13,8 +27,11 @@ export interface UsePostStateOptions {
    * with `post.shareUrl`, falling back to copying the URL to the clipboard.
    */
   onShare?: (post: SocialPost) => void | Promise<unknown>;
-  /** Enables the comment form. Resolve to keep, reject to restore the draft. */
-  onCommentSubmit?: (text: string, post: SocialPost) => void | Promise<unknown>;
+  /**
+   * Enables the comment form and reply buttons. Resolve to keep, reject to
+   * restore the draft. Replies carry `options.parentId`.
+   */
+  onCommentSubmit?: (text: string, post: SocialPost, options: CommentSubmitOptions) => void | Promise<unknown>;
   /** Replaces the comment button's default behaviour (expand + focus the form). */
   onCommentClick?: (post: SocialPost) => void;
   /** Fired when the comment list expands/collapses, e.g. to fetch the full thread. */
@@ -52,6 +69,11 @@ export interface PostState {
   submitComment: (text: string) => Promise<boolean>;
   commentInputRef: RefObject<HTMLInputElement | HTMLTextAreaElement | null>;
   openComments: () => void;
+  /** Set while the form is composing a reply rather than a top-level comment. */
+  replyTo: ReplyTarget | null;
+  /** Reply to `comment`; a reply to a reply joins the same top-level thread. */
+  startReply: (comment: SocialComment) => void;
+  cancelReply: () => void;
 
   canShare: boolean;
   shareStatus: ShareStatus;
@@ -149,6 +171,19 @@ export function usePostState({
     [onCommentsExpandedChange, post]
   );
 
+  const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null);
+  const commentInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+
+  const startReply = useCallback(
+    (comment: SocialComment) => {
+      const byId = new Map((post.comments ?? []).map((c) => [c.id, c]));
+      setReplyTo({ parentId: threadRootId(comment, byId), author: comment.author });
+      commentInputRef.current?.focus();
+    },
+    [post.comments]
+  );
+  const cancelReply = useCallback(() => setReplyTo(null), []);
+
   const [isCommentPending, setIsCommentPending] = useState(false);
   const submitComment = useCallback(
     async (text: string) => {
@@ -156,7 +191,8 @@ export function usePostState({
       if (!onCommentSubmit || !trimmed) return false;
       setIsCommentPending(true);
       try {
-        await onCommentSubmit(trimmed, post);
+        await onCommentSubmit(trimmed, post, replyTo ? { parentId: replyTo.parentId } : {});
+        setReplyTo(null);
         return true;
       } catch {
         return false;
@@ -164,16 +200,16 @@ export function usePostState({
         setIsCommentPending(false);
       }
     },
-    [onCommentSubmit, post]
+    [onCommentSubmit, post, replyTo]
   );
 
-  const commentInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const openComments = useCallback(() => {
     if (onCommentClick) {
       onCommentClick(post);
       return;
     }
     if (!commentsExpanded) setCommentsExpanded(true);
+    setReplyTo(null);
     commentInputRef.current?.focus();
   }, [commentsExpanded, onCommentClick, post, setCommentsExpanded]);
 
@@ -237,6 +273,9 @@ export function usePostState({
     submitComment,
     commentInputRef,
     openComments,
+    replyTo,
+    startReply,
+    cancelReply,
     canShare,
     shareStatus,
     share

@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   FeedPost,
@@ -314,7 +314,7 @@ describe('comments', () => {
     fireEvent.change(input, { target: { value: '  so cute  ' } });
     await act(async () => fireEvent.click(submit));
 
-    expect(onCommentSubmit).toHaveBeenCalledWith('so cute', post);
+    expect(onCommentSubmit).toHaveBeenCalledWith('so cute', post, {});
     expect(input.value).toBe('');
   });
 
@@ -349,6 +349,111 @@ describe('comments', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Comment' }));
     expect(onCommentClick).toHaveBeenCalledOnce();
+  });
+});
+
+describe('replies', () => {
+  const thread = [
+    { id: 'c1', author: { name: 'Grandma' }, text: 'So sweet' },
+    { id: 'c2', author: { name: 'Uncle Bob' }, text: '@Grandma agreed', parentId: 'c1' },
+    { id: 'c3', author: { name: 'Aunt May' }, text: 'Top level' },
+    { id: 'c4', author: { name: 'Grandpa' }, text: '@Uncle Bob me too', parentId: 'c2' }
+  ];
+
+  const renderThread = (onCommentSubmit = vi.fn().mockResolvedValue(undefined)) => {
+    const post = makePost({ comments: thread });
+    render(
+      <PostRoot post={post} onCommentSubmit={onCommentSubmit} defaultCommentsExpanded>
+        <PostComments />
+        <PostCommentForm />
+      </PostRoot>
+    );
+    return { post, onCommentSubmit };
+  };
+
+  const row = (text: string) => screen.getByText(text).closest('li')!;
+  const replyTo = (text: string) =>
+    fireEvent.click(within(row(text)).getAllByRole('button', { name: 'Reply' })[0]!);
+
+  it('nests replies one level deep, including replies to replies', () => {
+    renderThread();
+    const replies = within(row('So sweet')).getByRole('list');
+
+    expect(within(replies).getByText('@Grandma agreed')).toBeTruthy();
+    expect(within(replies).getByText('@Uncle Bob me too')).toBeTruthy();
+    // The reply to a reply sits beside it, not inside it.
+    expect(within(row('@Uncle Bob me too')).queryByRole('list')).toBeNull();
+    expect(within(row('@Grandma agreed')).queryByRole('list')).toBeNull();
+    expect(within(row('Top level')).queryByRole('list')).toBeNull();
+  });
+
+  it('shows a reply on its own when its top-level comment is not in the preview', () => {
+    render(
+      <PostRoot post={makePost({ comments: thread, commentCount: 4 })}>
+        <PostComments previewCount={1} />
+      </PostRoot>
+    );
+    expect(screen.getByText('@Uncle Bob me too')).toBeTruthy();
+    expect(screen.queryByText('So sweet')).toBeNull();
+  });
+
+  it('tags the author and files the reply under the top-level comment', async () => {
+    const { post, onCommentSubmit } = renderThread();
+    const input = screen.getByRole('textbox', { name: 'Add a comment' }) as HTMLInputElement;
+
+    replyTo('@Grandma agreed');
+    expect(input.value).toBe('@Uncle Bob ');
+    expect(document.activeElement).toBe(input);
+    expect(screen.getByText('Replying to Uncle Bob')).toBeTruthy();
+
+    fireEvent.change(input, { target: { value: '@Uncle Bob same' } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Post' })));
+
+    expect(onCommentSubmit).toHaveBeenCalledWith('@Uncle Bob same', post, { parentId: 'c1' });
+    expect(input.value).toBe('');
+    expect(screen.queryByText('Replying to Uncle Bob')).toBeNull();
+  });
+
+  it('replies to a top-level comment under that comment', async () => {
+    const { post, onCommentSubmit } = renderThread();
+    replyTo('Top level');
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    expect(input.value).toBe('@Aunt May ');
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Post' })));
+    expect(onCommentSubmit).toHaveBeenCalledWith('@Aunt May', post, { parentId: 'c3' });
+  });
+
+  it('keeps the reply open when submission fails', async () => {
+    renderThread(vi.fn().mockRejectedValue(new Error('nope')));
+    replyTo('So sweet');
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Post' })));
+
+    expect((screen.getByRole('textbox') as HTMLInputElement).value).toBe('@Grandma ');
+    expect(screen.getByText('Replying to Grandma')).toBeTruthy();
+  });
+
+  it('cancels a reply with the button or Escape', () => {
+    renderThread();
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+
+    replyTo('So sweet');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(input.value).toBe('');
+    expect(screen.queryByText('Replying to Grandma')).toBeNull();
+
+    replyTo('So sweet');
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(input.value).toBe('');
+  });
+
+  it('hides reply buttons when commenting is off', () => {
+    render(
+      <PostRoot post={makePost({ comments: thread })} defaultCommentsExpanded>
+        <PostComments />
+      </PostRoot>
+    );
+    expect(screen.queryByRole('button', { name: 'Reply' })).toBeNull();
   });
 });
 

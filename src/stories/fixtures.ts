@@ -27,7 +27,9 @@ const commentsFor = (index: number): SocialComment[] =>
   Array.from({ length: (index % 4) + 1 }, (_, n) => ({
     id: `c-${index}-${n}`,
     author: { name: names[(index + n + 1) % names.length]! },
-    text: ['So cute!! ❤️', 'Look at that smile', 'Growing up so fast', 'Love this one'][n % 4]!
+    text: ['So cute!! ❤️', 'Look at that smile', 'Growing up so fast', 'Love this one'][n % 4]!,
+    // The third comment on a post replies to the first.
+    parentId: n === 2 ? `c-${index}-0` : undefined
   }));
 
 export const makePost = (index: number): SocialPost => {

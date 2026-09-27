@@ -17,6 +17,7 @@ import {
   PostShareButton,
   PostTimestamp,
   PostTitle,
+  type CommentSubmitOptions,
   type SocialPost
 } from '../index';
 import { VirtualFeed } from '../virtual';
@@ -31,12 +32,12 @@ const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 /** Keeps comments locally so the stories feel live. */
 function useLocalPost(initial: SocialPost) {
   const [post, setPost] = useState(initial);
-  const addComment = useCallback(async (text: string) => {
+  const addComment = useCallback(async (text: string, _post: SocialPost, { parentId }: CommentSubmitOptions) => {
     await pause(300);
     setPost((current) => ({
       ...current,
       commentCount: (current.commentCount ?? 0) + 1,
-      comments: [...(current.comments ?? []), { id: `${Date.now()}`, author: { name: 'You' }, text }]
+      comments: [...(current.comments ?? []), { id: `${Date.now()}`, author: { name: 'You' }, text, parentId }]
     }));
   }, []);
   return { post, addComment };
