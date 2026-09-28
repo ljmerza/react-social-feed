@@ -105,6 +105,7 @@ interface SocialPost {
     text: string;
     createdAt?: string | Date;
     parentId?: string; // replies render one level under their top-level comment
+    canDelete?: boolean; // the viewer may delete it (shows the delete button)
   }>;
   shareUrl?: string;
 }
@@ -121,6 +122,7 @@ Every handler is optional. The state lives in `PostRoot` (which `FeedPost` wraps
 |---|---|
 | `onLikeChange(liked, post)` | The heart updates immediately. Return a promise and a rejection rolls the like back. When the `post` prop changes (a refetch or cache update), local state resyncs from it. |
 | `onCommentSubmit(text, post, { parentId })` | Turns on the comment form and each comment's Reply button. Text arrives trimmed. Resolve to clear the input; reject to keep the draft. Replies carry the top-level comment's `parentId`; a reply to a reply joins that same thread. The form starts a reply by tagging the author (`@Name `). |
+| `onCommentDelete(comment, post)` | Shows a delete button on comments with `canDelete: true`. Fires on click; confirm, delete, and update `post.comments` yourself. |
 | `onCommentClick(post)` | Replaces the comment button's default of expanding the comments and focusing the input, e.g. to open a modal. |
 | `onCommentsExpandedChange(expanded, post)` | Fires when "View all N comments" is toggled, so you can fetch the full thread. |
 | `onShare(post)` | Custom share. Without it the button uses the Web Share API with `post.shareUrl`, falls back to copying the link, and is disabled when there is no URL. |
@@ -147,7 +149,7 @@ import { Heart, MessageCircle, Send } from 'lucide-react';
 </PostIconsProvider>
 ```
 
-Keys: `like`, `liked`, `comment`, `share`, `send`, `previous`, `next`, `burst`.
+Keys: `like`, `liked`, `comment`, `share`, `send`, `previous`, `next`, `burst`, `remove`.
 
 `PostAction` is the button every built-in action is made of. Use it for your
 own actions so they match, and read post state with `usePostContext()`:
@@ -214,7 +216,7 @@ import {
 | `PostLikeCount` | A separate "N likes" line for layouts that hide the count on the button. `format(count, liked)`; return `null` to hide. |
 | `PostCaption` | Caption. `showAuthor` puts the author's name in front. |
 | `PostComments` | The newest `previewCount` comments plus a "View all" toggle, with replies nested one level under their top-level comment. `renderComment` and label props (`replyLabel`, …) are available. |
-| `PostComment` | A single comment row, with a Reply button when commenting is on. |
+| `PostComment` | A single comment row, with a Reply button when commenting is on and a delete button when the comment is deletable. |
 | `PostCommentForm` | Input and send button, plus a "Replying to Name · Cancel" line while replying (Escape also cancels). Renders nothing without `onCommentSubmit`. |
 
 To drop the `<article>` wrapper, call `usePostState(options)` yourself and pass
@@ -268,6 +270,7 @@ of rewriting rules:
   --rsf-post-max-width: 600px;
   --rsf-media-inset: 0;   /* edge-to-edge photos */
   --rsf-media-fit: contain;
+  --rsf-comment-gap: 1rem; /* space between comments and replies */
 }
 ```
 

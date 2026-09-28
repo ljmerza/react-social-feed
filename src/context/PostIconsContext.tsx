@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import { ChevronIcon, MessageIcon, SendIcon, ShareIcon, StarIcon } from '../icons';
+import { ChevronIcon, CloseIcon, MessageIcon, SendIcon, ShareIcon, StarIcon } from '../icons';
 
 /** Every icon the built-in primitives draw. Override any subset via `icons`. */
 export interface PostIcons {
@@ -13,6 +13,8 @@ export interface PostIcons {
   next: ReactNode;
   /** Pops over the media on a double-tap like. */
   burst: ReactNode;
+  /** A comment's delete button. */
+  remove: ReactNode;
 }
 
 export const defaultPostIcons: PostIcons = {
@@ -23,7 +25,8 @@ export const defaultPostIcons: PostIcons = {
   send: <SendIcon />,
   previous: <ChevronIcon direction="left" />,
   next: <ChevronIcon direction="right" />,
-  burst: <StarIcon filled />
+  burst: <StarIcon filled />,
+  remove: <CloseIcon />
 };
 
 const PostIconsContext = createContext<PostIcons>(defaultPostIcons);

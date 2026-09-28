@@ -18,6 +18,7 @@ export function PostRoot({
   onShare,
   onCommentSubmit,
   onCommentClick,
+  onCommentDelete,
   onCommentsExpandedChange,
   defaultCommentsExpanded,
   shareStatusResetMs,
@@ -32,6 +33,7 @@ export function PostRoot({
     onShare,
     onCommentSubmit,
     onCommentClick,
+    onCommentDelete,
     onCommentsExpandedChange,
     defaultCommentsExpanded,
     shareStatusResetMs

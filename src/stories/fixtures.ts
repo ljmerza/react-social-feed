@@ -29,7 +29,9 @@ const commentsFor = (index: number): SocialComment[] =>
     author: { name: names[(index + n + 1) % names.length]! },
     text: ['So cute!! ❤️', 'Look at that smile', 'Growing up so fast', 'Love this one'][n % 4]!,
     // The third comment on a post replies to the first.
-    parentId: n === 2 ? `c-${index}-0` : undefined
+    parentId: n === 2 ? `c-${index}-0` : undefined,
+    // The viewer wrote the first comment on each post.
+    canDelete: n === 0
   }));
 
 export const makePost = (index: number): SocialPost => {

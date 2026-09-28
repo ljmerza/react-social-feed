@@ -18,6 +18,7 @@ import {
   PostTimestamp,
   PostTitle,
   type CommentSubmitOptions,
+  type SocialComment,
   type SocialPost
 } from '../index';
 import { VirtualFeed } from '../virtual';
@@ -40,12 +41,18 @@ function useLocalPost(initial: SocialPost) {
       comments: [...(current.comments ?? []), { id: `${Date.now()}`, author: { name: 'You' }, text, parentId }]
     }));
   }, []);
-  return { post, addComment };
+  const deleteComment = useCallback((comment: SocialComment) => {
+    setPost((current) => {
+      const comments = (current.comments ?? []).filter((c) => c.id !== comment.id && c.parentId !== comment.id);
+      return { ...current, commentCount: comments.length, comments };
+    });
+  }, []);
+  return { post, addComment, deleteComment };
 }
 
 export const Default = () => {
-  const { post, addComment } = useLocalPost(makePost(0));
-  return <FeedPost post={post} onCommentSubmit={addComment} />;
+  const { post, addComment, deleteComment } = useLocalPost(makePost(0));
+  return <FeedPost post={post} onCommentSubmit={addComment} onCommentDelete={deleteComment} />;
 };
 
 export const Carousel = () => {

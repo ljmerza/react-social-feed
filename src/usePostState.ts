@@ -32,6 +32,11 @@ export interface UsePostStateOptions {
    * restore the draft. Replies carry `options.parentId`.
    */
   onCommentSubmit?: (text: string, post: SocialPost, options: CommentSubmitOptions) => void | Promise<unknown>;
+  /**
+   * Shows a delete button on comments with `canDelete`. Called on click; confirm
+   * and remove the comment yourself, then update `post.comments`.
+   */
+  onCommentDelete?: (comment: SocialComment, post: SocialPost) => void;
   /** Replaces the comment button's default behaviour (expand + focus the form). */
   onCommentClick?: (post: SocialPost) => void;
   /** Fired when the comment list expands/collapses, e.g. to fetch the full thread. */
@@ -74,6 +79,9 @@ export interface PostState {
   /** Reply to `comment`; a reply to a reply joins the same top-level thread. */
   startReply: (comment: SocialComment) => void;
   cancelReply: () => void;
+  /** Whether `comment` shows a delete button. */
+  canDeleteComment: (comment: SocialComment) => boolean;
+  deleteComment: (comment: SocialComment) => void;
 
   canShare: boolean;
   shareStatus: ShareStatus;
@@ -94,6 +102,7 @@ export function usePostState({
   onShare,
   onCommentSubmit,
   onCommentClick,
+  onCommentDelete,
   onCommentsExpandedChange,
   defaultCommentsExpanded = false,
   shareStatusResetMs = 2000
@@ -183,6 +192,17 @@ export function usePostState({
     [post.comments]
   );
   const cancelReply = useCallback(() => setReplyTo(null), []);
+
+  const canDeleteComment = useCallback(
+    (comment: SocialComment) => Boolean(onCommentDelete && comment.canDelete),
+    [onCommentDelete]
+  );
+  const deleteComment = useCallback(
+    (comment: SocialComment) => {
+      if (canDeleteComment(comment)) onCommentDelete?.(comment, post);
+    },
+    [canDeleteComment, onCommentDelete, post]
+  );
 
   const [isCommentPending, setIsCommentPending] = useState(false);
   const submitComment = useCallback(
@@ -276,6 +296,8 @@ export function usePostState({
     replyTo,
     startReply,
     cancelReply,
+    canDeleteComment,
+    deleteComment,
     canShare,
     shareStatus,
     share

@@ -27,6 +27,8 @@ export interface PostCommentProps extends Omit<ComponentPropsWithoutRef<'li'>, '
   formatTimestamp?: (date: Date) => ReactNode;
   /** Label for the reply button, shown when the root has `onCommentSubmit`. Default "Reply". */
   replyLabel?: ReactNode;
+  /** Accessible label for the icon-only delete button. Default "Delete comment". */
+  deleteLabel?: string;
   /** Rendered after the comment inside its row, e.g. its replies. */
   children?: ReactNode;
 }
@@ -35,26 +37,42 @@ export function PostComment({
   comment,
   formatTimestamp,
   replyLabel = 'Reply',
+  deleteLabel = 'Delete comment',
   children,
   className,
   ...props
 }: PostCommentProps) {
-  const { canComment, startReply } = usePostContext('PostComment');
+  const { canComment, startReply, canDeleteComment, deleteComment } = usePostContext('PostComment');
+  const icons = usePostIcons();
   const date = formatTimestamp ? toDate(comment.createdAt) : null;
 
   return (
     <li className={cx('rsf-post__comment', className)} {...props}>
-      <span className="rsf-post__author">{comment.author.name}</span> {comment.text}
-      {date && (
-        <time className="rsf-post__comment-timestamp" dateTime={date.toISOString()}>
-          {formatTimestamp?.(date)}
-        </time>
-      )}
-      {canComment && (
-        <button type="button" className="rsf-post__comment-reply" onClick={() => startReply(comment)}>
-          {replyLabel}
-        </button>
-      )}
+      <div className="rsf-post__comment-row">
+        <div className="rsf-post__comment-body">
+          <span className="rsf-post__author">{comment.author.name}</span> {comment.text}
+          {date && (
+            <time className="rsf-post__comment-timestamp" dateTime={date.toISOString()}>
+              {formatTimestamp?.(date)}
+            </time>
+          )}
+          {canComment && (
+            <button type="button" className="rsf-post__comment-reply" onClick={() => startReply(comment)}>
+              {replyLabel}
+            </button>
+          )}
+        </div>
+        {canDeleteComment(comment) && (
+          <button
+            type="button"
+            className="rsf-post__comment-delete"
+            aria-label={deleteLabel}
+            onClick={() => deleteComment(comment)}
+          >
+            {icons.remove}
+          </button>
+        )}
+      </div>
       {children}
     </li>
   );
@@ -98,6 +116,8 @@ export interface PostCommentsProps extends Omit<ComponentPropsWithoutRef<'div'>,
   hideLabel?: ReactNode;
   /** Label for each comment's reply button (default rows only). */
   replyLabel?: ReactNode;
+  /** Accessible label for each comment's delete button (default rows only). */
+  deleteLabel?: string;
 }
 
 export function PostComments({
@@ -106,6 +126,7 @@ export function PostComments({
   viewAllLabel = defaultViewAllLabel,
   hideLabel = 'Hide comments',
   replyLabel,
+  deleteLabel,
   className,
   ...props
 }: PostCommentsProps) {
@@ -123,7 +144,7 @@ export function PostComments({
         {replies}
       </li>
     ) : (
-      <PostComment key={comment.id} comment={comment} replyLabel={replyLabel}>
+      <PostComment key={comment.id} comment={comment} replyLabel={replyLabel} deleteLabel={deleteLabel}>
         {replies}
       </PostComment>
     );
