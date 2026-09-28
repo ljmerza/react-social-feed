@@ -46,6 +46,8 @@ export interface SocialPost {
   likeCount: number;
   /** Whether the current viewer has liked the post. */
   liked: boolean;
+  /** Whether the current viewer has favorited the post. Private to the viewer, so there is no count. */
+  favorited?: boolean;
   /** Total comments, which may exceed `comments.length` when only a preview is loaded. */
   commentCount?: number;
   comments?: SocialComment[];

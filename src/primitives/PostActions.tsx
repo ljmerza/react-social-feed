@@ -10,7 +10,10 @@ export interface PostActionsProps extends Omit<ComponentPropsWithoutRef<'div'>, 
   children?: RenderableChildren<PostState>;
 }
 
-/** Row of action buttons. Defaults to like, comment and (pushed right) share. */
+/**
+ * Row of action buttons. Defaults to like, comment and, pushed right, favorite
+ * (only when the root has `onFavoriteChange`) and share.
+ */
 export function PostActions({ children, className, ...props }: PostActionsProps) {
   const state = usePostContext('PostActions');
 
@@ -23,6 +26,7 @@ export function PostActions({ children, className, ...props }: PostActionsProps)
           <PostLikeButton />
           <PostCommentButton />
           <PostActionSpacer />
+          {state.canFavorite && <PostFavoriteButton />}
           <PostShareButton />
         </>
       )}
@@ -175,6 +179,34 @@ export function PostLikeButton({
       {...props}
     >
       {custom ? renderChildren(children, { liked, likeCount }, null) : showCount ? renderCount(likeCount) : undefined}
+    </PostAction>
+  );
+}
+
+export type PostFavoriteButtonProps = ActionButtonProps<{ favorited: boolean }> & {
+  /** Accessible label; defaults to "Add to favorites"/"Remove from favorites". */
+  label?: (favorited: boolean) => string;
+};
+
+export function PostFavoriteButton({ children, className, label, onClick, ...props }: PostFavoriteButtonProps) {
+  const { favorited, toggleFavorite } = usePostContext('PostFavoriteButton');
+  const icons = usePostIcons();
+  const custom = children !== undefined;
+
+  return (
+    <PostAction
+      className={cx('rsf-post__favorite-button', favorited && 'rsf-post__favorite-button--active', className)}
+      active={favorited}
+      aria-pressed={favorited}
+      aria-label={label ? label(favorited) : favorited ? 'Remove from favorites' : 'Add to favorites'}
+      icon={custom ? undefined : favorited ? icons.favorited : icons.favorite}
+      onClick={(event) => {
+        onClick?.(event);
+        if (!event.defaultPrevented) toggleFavorite();
+      }}
+      {...props}
+    >
+      {custom ? renderChildren(children, { favorited }, null) : undefined}
     </PostAction>
   );
 }

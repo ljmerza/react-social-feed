@@ -23,6 +23,14 @@ export function StarIcon({ filled = false, ...props }: IconProps & { filled?: bo
   );
 }
 
+export function BookmarkIcon({ filled = false, ...props }: IconProps & { filled?: boolean }) {
+  return (
+    <svg {...base} fill={filled ? 'currentColor' : 'none'} {...props}>
+      <path d="M6.5 3.5h11a1 1 0 0 1 1 1V20a.5.5 0 0 1-.8.4L12 16.25 6.3 20.4a.5.5 0 0 1-.8-.4V4.5a1 1 0 0 1 1-1Z" />
+    </svg>
+  );
+}
+
 export function MessageIcon(props: IconProps) {
   return (
     <svg {...base} {...props}>

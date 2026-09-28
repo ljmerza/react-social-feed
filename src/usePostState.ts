@@ -23,6 +23,12 @@ export interface UsePostStateOptions {
    */
   onLikeChange?: (liked: boolean, post: SocialPost) => void | Promise<unknown>;
   /**
+   * Called when the viewer favorites/unfavorites. The UI updates optimistically;
+   * if the returned promise rejects, the favorite state rolls back. Also adds
+   * the favorite button to the default action row.
+   */
+  onFavoriteChange?: (favorited: boolean, post: SocialPost) => void | Promise<unknown>;
+  /**
    * Custom share handler. Without it, the share button uses the Web Share API
    * with `post.shareUrl`, falling back to copying the URL to the clipboard.
    */
@@ -85,6 +91,13 @@ export interface PostState {
   /** What a long press on the like button does: fires `onLikeLongPress` and opens the likers list. */
   openLikers: () => void;
 
+  favorited: boolean;
+  toggleFavorite: () => void;
+  /** Sets an explicit favorite state; a no-op if it already matches. */
+  setFavorited: (favorited: boolean) => void;
+  /** Whether the root has `onFavoriteChange`, so the default action row shows the favorite button. */
+  canFavorite: boolean;
+
   mediaCount: number;
   activeMediaIndex: number;
   goToMedia: (index: number) => void;
@@ -133,6 +146,7 @@ const isAbortError = (error: unknown) =>
 export function usePostState({
   post,
   onLikeChange,
+  onFavoriteChange,
   onShare,
   onCommentSubmit,
   onCommentClick,
@@ -186,6 +200,38 @@ export function usePostState({
     setLikeBurstKey((key) => key + 1);
     setLiked(true);
   }, [setLiked]);
+
+  // --- Favorites: optimistic overlay on top of the post props ---------------
+  const postFavorited = post.favorited ?? false;
+  const [optimisticFavorited, setOptimisticFavorited] = useState<boolean | null>(null);
+  const [syncedFavorited, setSyncedFavorited] = useState(postFavorited);
+  if (syncedFavorited !== postFavorited) {
+    // The source of truth moved (refetch, cache update): drop the overlay.
+    setSyncedFavorited(postFavorited);
+    setOptimisticFavorited(null);
+  }
+  const favorited = optimisticFavorited ?? postFavorited;
+  const favoriteRequestRef = useRef(0);
+
+  const setFavorited = useCallback(
+    (nextFavorited: boolean) => {
+      if (nextFavorited === favorited) return;
+      const previous = favorited;
+      const requestId = ++favoriteRequestRef.current;
+      setOptimisticFavorited(nextFavorited);
+
+      const result = onFavoriteChange?.(nextFavorited, post);
+      if (result && typeof (result as Promise<unknown>).then === 'function') {
+        (result as Promise<unknown>).catch(() => {
+          // Only roll back if nothing newer has been issued since.
+          if (favoriteRequestRef.current === requestId) setOptimisticFavorited(previous);
+        });
+      }
+    },
+    [favorited, onFavoriteChange, post]
+  );
+
+  const toggleFavorite = useCallback(() => setFavorited(!favorited), [favorited, setFavorited]);
 
   // --- Likers: controlled when `likersOpen` is passed -----------------------
   const [likersOpenState, setLikersOpenState] = useState(defaultLikersOpen);
@@ -358,6 +404,10 @@ export function usePostState({
     likersOpen,
     setLikersOpen,
     openLikers,
+    favorited,
+    toggleFavorite,
+    setFavorited,
+    canFavorite: Boolean(onFavoriteChange),
     mediaCount,
     activeMediaIndex,
     goToMedia,

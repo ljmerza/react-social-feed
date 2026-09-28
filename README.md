@@ -98,6 +98,7 @@ interface SocialPost {
   createdAt?: string | Date;
   likeCount: number;
   liked: boolean;       // has the current viewer liked it
+  favorited?: boolean;  // has the current viewer favorited it (private: no count)
   commentCount?: number; // may exceed comments.length when only a preview is loaded
   comments?: Array<{
     id: string;
@@ -124,6 +125,7 @@ Every handler is optional. The state lives in `PostRoot` (which `FeedPost` wraps
 | Prop | What it does |
 |---|---|
 | `onLikeChange(liked, post)` | The heart updates immediately. Return a promise and a rejection rolls the like back. When the `post` prop changes (a refetch or cache update), local state resyncs from it. |
+| `onFavoriteChange(favorited, post)` | Adds the bookmark button to the default action row, next to share. Updates immediately; a rejected promise rolls it back. Favorites are private to the viewer, so the button shows no count. Resyncs from `post.favorited` like likes do. |
 | `onCommentSubmit(text, post, { parentId })` | Turns on the comment form and each comment's Reply button. Text arrives trimmed. Resolve to clear the input; reject to keep the draft. Replies carry the top-level comment's `parentId`; a reply to a reply joins that same thread. The form starts a reply by tagging the author (`@Name `). |
 | `onCommentDelete(comment, post)` | Shows a delete button on comments with `canDelete: true`. Fires on click; confirm, delete, and update `post.comments` yourself. |
 | `onCommentClick(post)` | Replaces the comment button's default of expanding the comments and focusing the input, e.g. to open a modal. |
@@ -238,7 +240,7 @@ import { Heart, MessageCircle, Send } from 'lucide-react';
 </PostIconsProvider>
 ```
 
-Keys: `like`, `liked`, `comment`, `share`, `send`, `previous`, `next`, `burst`, `remove`.
+Keys: `like`, `liked`, `favorite`, `favorited`, `comment`, `share`, `send`, `previous`, `next`, `burst`, `remove`.
 
 `PostAction` is the button every built-in action is made of. Use it for your
 own actions so they match, and read post state with `usePostContext()`:
@@ -298,9 +300,10 @@ import {
 | `PostAvatar`, `PostAuthor`, `PostTimestamp`, `PostTitle` | The individual header parts. `PostTitle` accepts `as`. |
 | `PostMedia` | Scroll-snap carousel. Props: `aspectRatio`, `renderItem`, `likeOnDoubleTap`, `loading`. |
 | `PostMediaItem`, `PostMediaPrevButton`, `PostMediaNextButton`, `PostMediaCounter`, `PostMediaIndicators` | Carousel parts. The default overlay is arrows plus a "2 / 5" counter; `PostMediaIndicators` draws dots instead. Pass children to `PostMedia` to replace the overlay. |
-| `PostActions` | Like, comment and (pushed to the end) share by default. |
+| `PostActions` | Like, comment and (pushed to the end) favorite and share by default. Favorite only appears when the root has `onFavoriteChange`. |
 | `PostAction`, `PostActionSpacer` | The shared action button, and a spacer that pushes later actions to the end. |
 | `PostLikeButton`, `PostCommentButton` | Icon plus count (`showCount={false}` hides it). Render-prop children replace both. The like button long-presses to open the likers (`longPress`, `likersHint`). |
+| `PostFavoriteButton` | Bookmark toggle, icon only, `aria-pressed`. `label(favorited)` sets the accessible name (default "Add to favorites"/"Remove from favorites"); render-prop children get `{ favorited }`. |
 | `PostShareButton` | Icon only. Render-prop children get the share status. |
 | `PostLikeCount` | A separate "N likes" line for layouts that hide the count on the button. `format(count, liked)`; return `null` to hide. |
 | `PostCaption` | Caption. `showAuthor` puts the author's name in front. |
@@ -395,6 +398,7 @@ of rewriting rules:
 ```css
 :root {
   --rsf-color-like: #e11d48;
+  --rsf-color-favorite: #0d9488;
   --rsf-post-max-width: 600px;
   --rsf-media-inset: 0;   /* edge-to-edge photos */
   --rsf-media-fit: contain;

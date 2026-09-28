@@ -8,6 +8,8 @@
   --rsf-color-accent: #2563eb;
   --rsf-color-like: #f59e0b;
   --rsf-color-like-soft: rgba(245, 158, 11, 0.14);
+  --rsf-color-favorite: #7c3aed;
+  --rsf-color-favorite-soft: rgba(124, 58, 237, 0.12);
   --rsf-color-pill: #f4f4f5;
   --rsf-color-pill-hover: #e9e9ec;
   --rsf-color-overlay: rgba(255, 255, 255, 0.9);
@@ -43,6 +45,8 @@
   --rsf-color-accent: #60a5fa;
   --rsf-color-like: #fbbf24;
   --rsf-color-like-soft: rgba(251, 191, 36, 0.16);
+  --rsf-color-favorite: #a78bfa;
+  --rsf-color-favorite-soft: rgba(167, 139, 250, 0.16);
   --rsf-color-pill: #27272a;
   --rsf-color-pill-hover: #323238;
   --rsf-color-overlay: rgba(39, 39, 42, 0.9);
@@ -350,6 +354,11 @@
 .rsf-post__action[data-active] {
   background: var(--rsf-color-like-soft);
   color: var(--rsf-color-like);
+}
+
+.rsf-post__favorite-button[data-active] {
+  background: var(--rsf-color-favorite-soft);
+  color: var(--rsf-color-favorite);
 }
 
 .rsf-post__share-button[data-status='copied'],

@@ -15,6 +15,7 @@ export interface PostRootProps
 export function PostRoot({
   post,
   onLikeChange,
+  onFavoriteChange,
   onShare,
   onCommentSubmit,
   onCommentClick,
@@ -37,6 +38,7 @@ export function PostRoot({
   const state = usePostState({
     post,
     onLikeChange,
+    onFavoriteChange,
     onShare,
     onCommentSubmit,
     onCommentClick,
@@ -59,6 +61,7 @@ export function PostRoot({
         <article
           className={cx('rsf-post', className)}
           data-liked={state.liked || undefined}
+          data-favorited={state.favorited || undefined}
           {...articleProps}
         >
           {renderChildren(children, state, null)}
