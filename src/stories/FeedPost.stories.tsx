@@ -138,6 +138,41 @@ export const MinimalCard = () => (
   </PostRoot>
 );
 
+const longThread: SocialComment[] = Array.from({ length: 20 }, (_, n) => ({
+  id: `long-${n}`,
+  author: { name: ['Maya Chen', 'Leo Park', 'Grandma June', 'Sam Rivera'][n % 4]! },
+  text: n % 5 === 3 ? `@Maya Chen reply ${n + 1}` : `Comment ${n + 1}`,
+  // Every fifth comment from the fourth on replies to the one three before it.
+  parentId: n % 5 === 3 ? `long-${n - 3}` : undefined
+}));
+
+/**
+ * Three comments up front, five more per click. Only a preview is loaded at
+ * first; the first click "fetches" the full thread.
+ */
+export const ShowMoreComments = () => {
+  const [post, setPost] = useState<SocialPost>(() => ({
+    ...makePost(0),
+    commentCount: longThread.length,
+    comments: longThread.slice(-3)
+  }));
+  const loadThread = useCallback(async (expanded: boolean) => {
+    if (!expanded) return;
+    await pause(600);
+    setPost((current) => ({ ...current, comments: longThread }));
+  }, []);
+
+  return (
+    <PostRoot post={post} onCommentsExpandedChange={loadThread}>
+      <PostMedia />
+      <div className="rsf-post__body">
+        <PostCaption />
+        <PostComments previewCount={3} pageSize={5} loadingLabel="Loading comments…" />
+      </div>
+    </PostRoot>
+  );
+};
+
 export const InfiniteVirtualFeed = () => {
   const [posts, setPosts] = useState(() => makePosts(10));
   const [isLoadingMore, setIsLoadingMore] = useState(false);

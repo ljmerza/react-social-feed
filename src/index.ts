@@ -61,10 +61,13 @@ export {
   PostComment,
   PostComments,
   PostCommentForm,
+  usePostCommentReveal,
   type PostCaptionProps,
   type PostCommentProps,
   type PostCommentsProps,
-  type PostCommentFormProps
+  type PostCommentFormProps,
+  type PostCommentReveal,
+  type PostCommentRevealOptions
 } from './primitives/PostComments';
 export { FeedPost, type FeedPostProps } from './FeedPost';
 export { StarIcon, MessageIcon, ShareIcon, SendIcon, ChevronIcon } from './icons';

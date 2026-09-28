@@ -400,6 +400,12 @@
   cursor: pointer;
 }
 
+/* Stands in for "Show more" while more comments load (only with `loadingLabel`). */
+.rsf-post__comments-loading {
+  color: var(--rsf-color-text-muted);
+  font-size: 0.8rem;
+}
+
 .rsf-post__comment-list {
   display: flex;
   flex-direction: column;

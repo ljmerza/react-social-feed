@@ -41,7 +41,17 @@ export interface UsePostStateOptions {
   onCommentClick?: (post: SocialPost) => void;
   /** Fired when the comment list expands/collapses, e.g. to fetch the full thread. */
   onCommentsExpandedChange?: (expanded: boolean, post: SocialPost) => void;
+  /** Start expanded: one "Show more" step already taken (`defaultCommentPage` 1). */
   defaultCommentsExpanded?: boolean;
+  /**
+   * Controlled comment page: how many "Show more" steps have been taken since
+   * the list was last collapsed. 0 shows the preview; `Infinity` shows everything.
+   */
+  commentPage?: number;
+  /** Uncontrolled starting page. Defaults to 1 with `defaultCommentsExpanded`, else 0. */
+  defaultCommentPage?: number;
+  /** Fired whenever the comment page changes, including collapsing back to 0. */
+  onCommentPageChange?: (page: number, post: SocialPost) => void;
   /** How long a share status ('copied', 'shared', 'error') lingers before resetting. */
   shareStatusResetMs?: number;
 }
@@ -66,8 +76,15 @@ export interface PostState {
   mediaScrollerRef: RefObject<HTMLDivElement | null>;
 
   commentCount: number;
+  /** True once any "Show more" step has been taken (`commentPage > 0`). */
   commentsExpanded: boolean;
+  /** Expanding takes the first step (if none yet); collapsing returns to page 0. */
   setCommentsExpanded: (expanded: boolean) => void;
+  /** "Show more" steps taken since the list was last collapsed. See `usePostCommentReveal`. */
+  commentPage: number;
+  setCommentPage: (page: number) => void;
+  /** Take one more "Show more" step; the first also fires `onCommentsExpandedChange(true)`. */
+  showMoreComments: () => void;
   canComment: boolean;
   isCommentPending: boolean;
   /** Resolves true when the comment was accepted. */
@@ -105,6 +122,9 @@ export function usePostState({
   onCommentDelete,
   onCommentsExpandedChange,
   defaultCommentsExpanded = false,
+  commentPage: controlledCommentPage,
+  defaultCommentPage,
+  onCommentPageChange,
   shareStatusResetMs = 2000
 }: UsePostStateOptions): PostState {
   // --- Likes: optimistic overlay on top of the post props -------------------
@@ -171,14 +191,32 @@ export function usePostState({
 
   // --- Comments --------------------------------------------------------------
   const commentCount = post.commentCount ?? post.comments?.length ?? 0;
-  const [commentsExpanded, setCommentsExpandedState] = useState(defaultCommentsExpanded);
+  const [uncontrolledCommentPage, setUncontrolledCommentPage] = useState(
+    () => defaultCommentPage ?? (defaultCommentsExpanded ? 1 : 0)
+  );
+  const commentPage = Math.max(0, controlledCommentPage ?? uncontrolledCommentPage);
+  const commentsExpanded = commentPage > 0;
+
+  const setCommentPage = useCallback(
+    (page: number) => {
+      const next = Math.max(0, page);
+      if (next === commentPage) return;
+      setUncontrolledCommentPage(next);
+      onCommentPageChange?.(next, post);
+      if ((next > 0) !== (commentPage > 0)) onCommentsExpandedChange?.(next > 0, post);
+    },
+    [commentPage, onCommentPageChange, onCommentsExpandedChange, post]
+  );
   const setCommentsExpanded = useCallback(
     (expanded: boolean) => {
-      setCommentsExpandedState(expanded);
+      const next = expanded ? Math.max(commentPage, 1) : 0;
+      setUncontrolledCommentPage(next);
+      if (next !== commentPage) onCommentPageChange?.(next, post);
       onCommentsExpandedChange?.(expanded, post);
     },
-    [onCommentsExpandedChange, post]
+    [commentPage, onCommentPageChange, onCommentsExpandedChange, post]
   );
+  const showMoreComments = useCallback(() => setCommentPage(commentPage + 1), [commentPage, setCommentPage]);
 
   const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null);
   const commentInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
@@ -288,6 +326,9 @@ export function usePostState({
     commentCount,
     commentsExpanded,
     setCommentsExpanded,
+    commentPage,
+    setCommentPage,
+    showMoreComments,
     canComment: Boolean(onCommentSubmit),
     isCommentPending,
     submitComment,

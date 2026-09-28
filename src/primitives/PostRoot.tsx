@@ -21,6 +21,9 @@ export function PostRoot({
   onCommentDelete,
   onCommentsExpandedChange,
   defaultCommentsExpanded,
+  commentPage,
+  defaultCommentPage,
+  onCommentPageChange,
   shareStatusResetMs,
   icons,
   children,
@@ -36,6 +39,9 @@ export function PostRoot({
     onCommentDelete,
     onCommentsExpandedChange,
     defaultCommentsExpanded,
+    commentPage,
+    defaultCommentPage,
+    onCommentPageChange,
     shareStatusResetMs
   });
 

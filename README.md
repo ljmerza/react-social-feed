@@ -124,9 +124,10 @@ Every handler is optional. The state lives in `PostRoot` (which `FeedPost` wraps
 | `onCommentSubmit(text, post, { parentId })` | Turns on the comment form and each comment's Reply button. Text arrives trimmed. Resolve to clear the input; reject to keep the draft. Replies carry the top-level comment's `parentId`; a reply to a reply joins that same thread. The form starts a reply by tagging the author (`@Name `). |
 | `onCommentDelete(comment, post)` | Shows a delete button on comments with `canDelete: true`. Fires on click; confirm, delete, and update `post.comments` yourself. |
 | `onCommentClick(post)` | Replaces the comment button's default of expanding the comments and focusing the input, e.g. to open a modal. |
-| `onCommentsExpandedChange(expanded, post)` | Fires when "View all N comments" is toggled, so you can fetch the full thread. |
+| `onCommentsExpandedChange(expanded, post)` | Fires on the first "Show more" (`true`) and on collapsing (`false`), so you can fetch the full thread. See [Showing more comments](#showing-more-comments). |
 | `onShare(post)` | Custom share. Without it the button uses the Web Share API with `post.shareUrl`, falls back to copying the link, and is disabled when there is no URL. |
-| `defaultCommentsExpanded` | Start with the full comment list open. |
+| `defaultCommentsExpanded` | Start one "Show more" step in: the full list without `pageSize`, the preview plus one page with it. |
+| `commentPage`, `defaultCommentPage`, `onCommentPageChange(page, post)` | The comment reveal position: how many "Show more" steps have been taken (0 = preview, `Infinity` = everything). Pass `commentPage` to control it. |
 | `shareStatusResetMs` | How long `'shared'`/`'copied'`/`'error'` stays before resetting. Default 2000. |
 
 Double-tapping or double-clicking the media likes the post and plays a short
@@ -215,7 +216,7 @@ import {
 | `PostShareButton` | Icon only. Render-prop children get the share status. |
 | `PostLikeCount` | A separate "N likes" line for layouts that hide the count on the button. `format(count, liked)`; return `null` to hide. |
 | `PostCaption` | Caption. `showAuthor` puts the author's name in front. |
-| `PostComments` | The newest `previewCount` comments plus a "View all" toggle, with replies nested one level under their top-level comment. `renderComment` and label props (`replyLabel`, …) are available. |
+| `PostComments` | The newest `previewCount` comments plus a "Show more" control (all at once, or `pageSize` at a time) and "Hide comments", with replies nested one level under their top-level comment. See [Showing more comments](#showing-more-comments). |
 | `PostComment` | A single comment row, with a Reply button when commenting is on and a delete button when the comment is deletable. |
 | `PostCommentForm` | Input and send button, plus a "Replying to Name · Cancel" line while replying (Escape also cancels). Renders nothing without `onCommentSubmit`. |
 
@@ -225,8 +226,45 @@ component the same state the primitives use.
 
 Visible and accessible strings (`"Like"`, `"View all N comments"`,
 `"Add a comment…"`) can be replaced through props (`label`, `viewAllLabel`,
-`placeholder`, `submitLabel`, `format`, `aria-label`, …), which is how you plug
-in i18n.
+`showMoreLabel`, `placeholder`, `submitLabel`, `format`, `aria-label`, …), which
+is how you plug in i18n.
+
+### Showing more comments
+
+`PostComments` shows the newest `previewCount` comments (default 2). Without
+`pageSize`, one click on "View all N comments" shows the rest, as before. With
+`pageSize`, each click on "View more comments (N)" reveals that many earlier
+comments, and "Hide comments" goes back to the preview:
+
+```tsx
+<PostComments
+  previewCount={3}
+  pageSize={5}
+  showMoreLabel={(remaining, total) => t('comments.more', { count: remaining })}
+  hideLabel={t('comments.hide')}
+  loadingLabel={t('comments.loading')}
+/>
+```
+
+- **Threads stay whole.** Comments are counted, but a reply is never shown
+  without its top-level comment or the other way round, so a click may reveal a
+  few more than `pageSize` to finish a thread. Threads are revealed newest
+  activity first and listed oldest first. A reply whose top-level comment isn't
+  loaded shows on its own.
+- **Previews.** When `commentCount` is higher than `comments.length`, the first
+  click fires `onCommentsExpandedChange(true)` so you can load the full thread
+  into `post.comments`. Until it grows, the control is hidden, or shows
+  `loadingLabel` if you pass one. Paging picks up once the comments arrive.
+- **Customizing.** `showMorePosition="end"` moves the control below the list.
+  `renderShowMore(reveal)` and `renderHide(reveal)` replace the controls
+  outright. The buttons carry `rsf-post__comments-toggle` plus a `--more` or
+  `--hide` modifier; the loading text is `rsf-post__comments-loading`.
+- **Headless.** `usePostCommentReveal({ previewCount, pageSize })` returns what
+  `PostComments` renders from: the visible `comments`, `visibleCount`,
+  `totalCount`, `remainingCount`, `loadedCount`, `page`, `canShowMore`,
+  `isLoadingMore`, `canCollapse`, `showMore()` and `collapse()`. The step count
+  itself (`commentPage`, `setCommentPage`, `showMoreComments`) lives in the post
+  state, so every component in a post shares it.
 
 ## Virtualized feed
 
