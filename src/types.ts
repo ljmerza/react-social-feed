@@ -32,6 +32,8 @@ export interface SocialComment {
    * their top-level comment; a reply to a reply joins the same thread.
    */
   parentId?: string;
+  /** Whether the viewer may delete this comment; shows its delete button when the root has `onCommentDelete`. */
+  canDelete?: boolean;
 }
 
 export interface SocialPost {

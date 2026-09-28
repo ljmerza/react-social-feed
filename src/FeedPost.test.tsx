@@ -457,6 +457,46 @@ describe('replies', () => {
   });
 });
 
+describe('deleting comments', () => {
+  const comments = [
+    { id: 'c1', author: { name: 'Grandma' }, text: 'So sweet', canDelete: true },
+    { id: 'c2', author: { name: 'Uncle Bob' }, text: 'Cute' }
+  ];
+
+  it('shows delete only on deletable comments and hands the comment over', () => {
+    const onCommentDelete = vi.fn();
+    const post = makePost({ comments });
+    render(
+      <PostRoot post={post} onCommentDelete={onCommentDelete}>
+        <PostComments />
+      </PostRoot>
+    );
+
+    const buttons = screen.getAllByRole('button', { name: 'Delete comment' });
+    expect(buttons).toHaveLength(1);
+    fireEvent.click(buttons[0]!);
+    expect(onCommentDelete).toHaveBeenCalledWith(comments[0], post);
+  });
+
+  it('hides delete without onCommentDelete', () => {
+    render(
+      <PostRoot post={makePost({ comments })}>
+        <PostComments />
+      </PostRoot>
+    );
+    expect(screen.queryByRole('button', { name: 'Delete comment' })).toBeNull();
+  });
+
+  it('accepts a custom delete label', () => {
+    render(
+      <PostRoot post={makePost({ comments })} onCommentDelete={vi.fn()}>
+        <PostComments deleteLabel="Remove" />
+      </PostRoot>
+    );
+    expect(screen.getByRole('button', { name: 'Remove' })).toBeTruthy();
+  });
+});
+
 describe('composition', () => {
   it('lets consumers replace default children and read state via render props', () => {
     render(
