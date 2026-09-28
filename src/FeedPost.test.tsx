@@ -352,6 +352,216 @@ describe('comments', () => {
   });
 });
 
+describe('showing more comments', () => {
+  const numbered = (from: number, to: number) =>
+    Array.from({ length: to - from + 1 }, (_, i) => ({
+      id: `c${from + i}`,
+      author: { name: `User ${from + i}` },
+      text: `comment ${from + i}`
+    }));
+  const shown = () =>
+    [...document.querySelectorAll('.rsf-post__comment-body')].flatMap(
+      (body) => body.textContent?.match(/comment \d+$/) ?? []
+    );
+  const showMore = () => screen.getByRole('button', { name: /^View / });
+
+  it('shows the preview count, then reveals a page of earlier comments per click', () => {
+    const onCommentsExpandedChange = vi.fn();
+    render(
+      <PostRoot post={makePost({ comments: numbered(1, 12) })} onCommentsExpandedChange={onCommentsExpandedChange}>
+        <PostComments previewCount={3} pageSize={5} />
+      </PostRoot>
+    );
+    expect(shown()).toEqual(['comment 10', 'comment 11', 'comment 12']);
+    expect(showMore().textContent).toBe('View more comments (9)');
+
+    fireEvent.click(showMore());
+    expect(shown()).toHaveLength(8);
+    expect(shown()[0]).toBe('comment 5');
+    expect(onCommentsExpandedChange).toHaveBeenCalledOnce();
+    expect(onCommentsExpandedChange).toHaveBeenCalledWith(true, expect.anything());
+
+    fireEvent.click(showMore());
+    expect(shown()).toHaveLength(12);
+    expect(screen.queryByRole('button', { name: /^View / })).toBeNull();
+    expect(onCommentsExpandedChange).toHaveBeenCalledOnce();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide comments' }));
+    expect(shown()).toEqual(['comment 10', 'comment 11', 'comment 12']);
+    expect(onCommentsExpandedChange).toHaveBeenLastCalledWith(false, expect.anything());
+  });
+
+  it('reveals everything on the first click without a page size', () => {
+    render(
+      <PostRoot post={makePost({ comments: numbered(1, 12) })}>
+        <PostComments previewCount={3} />
+      </PostRoot>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'View all 12 comments' }));
+    expect(shown()).toHaveLength(12);
+  });
+
+  it('finishes a thread rather than splitting it across pages', () => {
+    const comments = [
+      ...numbered(1, 2),
+      { id: 'r1', author: { name: 'A' }, text: 'reply one', parentId: 'c2' },
+      { id: 'r2', author: { name: 'B' }, text: 'reply two', parentId: 'c2' },
+      ...numbered(3, 4)
+    ];
+    render(
+      <PostRoot post={makePost({ comments })}>
+        <PostComments previewCount={1} pageSize={2} />
+      </PostRoot>
+    );
+    expect(shown()).toEqual(['comment 4']);
+
+    // Two more asked for, but comment 2's thread comes whole.
+    fireEvent.click(showMore());
+    expect(shown()).toEqual(['comment 2', 'comment 3', 'comment 4']);
+    expect(screen.getByText('reply one')).toBeTruthy();
+    expect(screen.getByText('reply two')).toBeTruthy();
+    expect(screen.queryByText('comment 1')).toBeNull();
+  });
+
+  it('brings an older thread along when its newest reply is in view', () => {
+    const comments = [
+      ...numbered(1, 3),
+      { id: 'r1', author: { name: 'A' }, text: 'late reply', parentId: 'c1' }
+    ];
+    render(
+      <PostRoot post={makePost({ comments })}>
+        <PostComments previewCount={1} pageSize={1} />
+      </PostRoot>
+    );
+    expect(shown()).toEqual(['comment 1']);
+    expect(screen.getByText('late reply')).toBeTruthy();
+    fireEvent.click(showMore());
+    expect(shown()).toEqual(['comment 1', 'comment 3']);
+  });
+
+  it('asks for the full thread when only a preview is loaded, then keeps paging once it arrives', () => {
+    const onCommentsExpandedChange = vi.fn();
+    const preview = makePost({ comments: numbered(18, 20), commentCount: 20 });
+    const { rerender } = render(
+      <PostRoot post={preview} onCommentsExpandedChange={onCommentsExpandedChange}>
+        <PostComments previewCount={3} pageSize={5} loadingLabel="Loading…" />
+      </PostRoot>
+    );
+    expect(showMore().textContent).toBe('View more comments (17)');
+
+    fireEvent.click(showMore());
+    expect(onCommentsExpandedChange).toHaveBeenCalledWith(true, expect.anything());
+    // Nothing more to show until the thread loads: no dead button.
+    expect(screen.queryByRole('button', { name: /^View / })).toBeNull();
+    expect(screen.getByRole('status').textContent).toBe('Loading…');
+    expect(screen.queryByRole('button', { name: 'Hide comments' })).toBeNull();
+
+    rerender(
+      <PostRoot post={{ ...preview, comments: numbered(1, 20) }} onCommentsExpandedChange={onCommentsExpandedChange}>
+        <PostComments previewCount={3} pageSize={5} loadingLabel="Loading…" />
+      </PostRoot>
+    );
+    expect(shown()).toHaveLength(8);
+    expect(shown()[0]).toBe('comment 13');
+    expect(screen.queryByRole('status')).toBeNull();
+
+    fireEvent.click(showMore());
+    expect(shown()[0]).toBe('comment 8');
+    expect(onCommentsExpandedChange).toHaveBeenCalledOnce();
+  });
+
+  it('hides the control while loading when no loading label is given', () => {
+    render(
+      <PostRoot post={makePost({ comments: numbered(1, 2), commentCount: 5 })}>
+        <PostComments pageSize={2} />
+      </PostRoot>
+    );
+    fireEvent.click(showMore());
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('accepts custom labels, a position and render props for the controls', () => {
+    const { rerender } = render(
+      <PostRoot post={makePost({ comments: numbered(1, 6) })}>
+        <PostComments
+          previewCount={2}
+          pageSize={2}
+          showMorePosition="end"
+          showMoreLabel={(remaining, total) => `Earlier (${remaining} of ${total})`}
+          hideLabel="Fewer"
+        />
+      </PostRoot>
+    );
+    const button = screen.getByRole('button', { name: 'Earlier (4 of 6)' });
+    expect(button.previousElementSibling?.tagName).toBe('UL');
+    expect(button.className).toContain('rsf-post__comments-toggle--more');
+    fireEvent.click(button);
+    expect(screen.getByRole('button', { name: 'Fewer' }).className).toContain('rsf-post__comments-toggle--hide');
+
+    rerender(
+      <PostRoot post={makePost({ comments: numbered(1, 6) })}>
+        <PostComments
+          previewCount={2}
+          pageSize={2}
+          renderShowMore={({ visibleCount, totalCount, showMore: more }) => (
+            <a href="#more" onClick={more}>
+              {visibleCount}/{totalCount}
+            </a>
+          )}
+          renderHide={({ collapse }) => (
+            <a href="#less" onClick={collapse}>
+              less
+            </a>
+          )}
+        />
+      </PostRoot>
+    );
+    // The reveal state lives on the root, so the page carried over.
+    fireEvent.click(screen.getByText('4/6'));
+    expect(shown()).toHaveLength(6);
+    expect(screen.queryByText(/\/6$/)).toBeNull();
+    fireEvent.click(screen.getByText('less'));
+    expect(shown()).toHaveLength(2);
+  });
+
+  it('exposes the reveal state and supports a controlled page', () => {
+    const onCommentPageChange = vi.fn();
+    const { rerender } = render(
+      <PostRoot post={makePost({ comments: numbered(1, 10) })} commentPage={1} onCommentPageChange={onCommentPageChange}>
+        {(state) => (
+          <>
+            <span data-testid="page">{state.commentPage}</span>
+            <PostComments previewCount={2} pageSize={3} />
+          </>
+        )}
+      </PostRoot>
+    );
+    expect(shown()).toHaveLength(5);
+    fireEvent.click(showMore());
+    expect(onCommentPageChange).toHaveBeenCalledWith(2, expect.anything());
+    // Controlled: nothing moves until the parent passes the new page.
+    expect(shown()).toHaveLength(5);
+
+    rerender(
+      <PostRoot post={makePost({ comments: numbered(1, 10) })} commentPage={Infinity}>
+        <PostComments previewCount={2} pageSize={3} />
+      </PostRoot>
+    );
+    expect(shown()).toHaveLength(10);
+  });
+
+  it('starts one page in with defaultCommentsExpanded', () => {
+    render(
+      <PostRoot post={makePost({ comments: numbered(1, 10) })} defaultCommentsExpanded>
+        <PostComments previewCount={2} pageSize={3} />
+      </PostRoot>
+    );
+    expect(shown()).toHaveLength(5);
+    expect(screen.getByRole('button', { name: 'Hide comments' })).toBeTruthy();
+  });
+});
+
 describe('replies', () => {
   const thread = [
     { id: 'c1', author: { name: 'Grandma' }, text: 'So sweet' },
@@ -387,14 +597,27 @@ describe('replies', () => {
     expect(within(row('Top level')).queryByRole('list')).toBeNull();
   });
 
-  it('shows a reply on its own when its top-level comment is not in the preview', () => {
+  it('shows a reply on its own when its top-level comment is not loaded', () => {
+    // A preview holding only the newest two comments.
+    render(
+      <PostRoot post={makePost({ comments: thread.slice(2), commentCount: 4 })}>
+        <PostComments />
+      </PostRoot>
+    );
+    expect(screen.getByText('@Uncle Bob me too')).toBeTruthy();
+    expect(screen.queryByText('So sweet')).toBeNull();
+  });
+
+  it('never splits a thread from its top-level comment in the preview', () => {
     render(
       <PostRoot post={makePost({ comments: thread, commentCount: 4 })}>
         <PostComments previewCount={1} />
       </PostRoot>
     );
-    expect(screen.getByText('@Uncle Bob me too')).toBeTruthy();
-    expect(screen.queryByText('So sweet')).toBeNull();
+    const replies = within(row('So sweet')).getByRole('list');
+    expect(within(replies).getByText('@Uncle Bob me too')).toBeTruthy();
+    expect(within(replies).getByText('@Grandma agreed')).toBeTruthy();
+    expect(screen.queryByText('Top level')).toBeNull();
   });
 
   it('tags the author and files the reply under the top-level comment', async () => {

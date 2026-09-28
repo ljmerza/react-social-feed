@@ -1,7 +1,7 @@
 import type { ComponentPropsWithoutRef, ElementType, ReactNode } from 'react';
 import { usePostContext } from '../context/PostContext';
 import type { SocialAuthor } from '../types';
-import { cx, renderChildren, toDate, type RenderableChildren } from '../utils';
+import { cx, initialsOf, renderChildren, toDate, type RenderableChildren } from '../utils';
 import type { PostState } from '../usePostState';
 
 export interface PostHeaderProps extends Omit<ComponentPropsWithoutRef<'header'>, 'children'> {
@@ -27,14 +27,6 @@ export function PostHeader({ children, className, ...props }: PostHeaderProps) {
     </header>
   );
 }
-
-const initialsOf = (name: string) =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('');
 
 export interface PostAvatarProps extends Omit<ComponentPropsWithoutRef<'span'>, 'children'> {
   /** Defaults to the post author. */

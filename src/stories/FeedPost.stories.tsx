@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type CSSProperties } from 'react';
 import {
   FeedPost,
   PostAction,
@@ -12,12 +12,14 @@ import {
   PostHeader,
   PostLikeButton,
   PostLikeCount,
+  PostLikers,
   PostMedia,
   PostRoot,
   PostShareButton,
   PostTimestamp,
   PostTitle,
   type CommentSubmitOptions,
+  type SocialAuthor,
   type SocialComment,
   type SocialPost
 } from '../index';
@@ -126,6 +128,43 @@ export const CustomComposition = () => {
   );
 };
 
+const fakeLikers = (post: SocialPost): Promise<SocialAuthor[]> =>
+  pause(600).then(() =>
+    Array.from({ length: post.likeCount }, (_, n) => ({
+      id: `liker-${n}`,
+      name: ['Maya Chen', 'Leo Park', 'Grandma June', 'Sam Rivera', 'Aunt Priya', 'Noah Kim'][n % 6]!,
+      avatarUrl: n % 3 === 0 ? undefined : `https://i.pravatar.cc/64?u=liker-${n}`
+    }))
+  );
+
+/**
+ * Long-press the star (or focus it and press Shift+Enter) to see who liked the
+ * post. The library only renders the list; where it goes is up to you. Here it
+ * sits in a native `<dialog>`.
+ */
+export const LongPressLikers = () => {
+  const [open, setOpen] = useState(false);
+  const post = makePost(0);
+  return (
+    <>
+      <FeedPost post={post} likersOpen={open} onLikersOpenChange={setOpen} />
+      {open && (
+        <dialog
+          open
+          aria-label="Liked by"
+          style={{ position: 'fixed', inset: 0, margin: 'auto', width: 320, borderRadius: 16, fontFamily: 'sans-serif' }}
+        >
+          <h2 style={{ marginTop: 0, fontSize: 16 }}>Liked by</h2>
+          <PostLikers post={post} loadLikers={fakeLikers} style={{ '--rsf-likers-max-height': '320px' } as CSSProperties} />
+          <button type="button" onClick={() => setOpen(false)} style={{ marginTop: 16 }}>
+            Close
+          </button>
+        </dialog>
+      )}
+    </>
+  );
+};
+
 export const MinimalCard = () => (
   <PostRoot post={makePost(3)} style={{ maxWidth: 320 }}>
     <PostMedia />
@@ -137,6 +176,41 @@ export const MinimalCard = () => (
     </div>
   </PostRoot>
 );
+
+const longThread: SocialComment[] = Array.from({ length: 20 }, (_, n) => ({
+  id: `long-${n}`,
+  author: { name: ['Maya Chen', 'Leo Park', 'Grandma June', 'Sam Rivera'][n % 4]! },
+  text: n % 5 === 3 ? `@Maya Chen reply ${n + 1}` : `Comment ${n + 1}`,
+  // Every fifth comment from the fourth on replies to the one three before it.
+  parentId: n % 5 === 3 ? `long-${n - 3}` : undefined
+}));
+
+/**
+ * Three comments up front, five more per click. Only a preview is loaded at
+ * first; the first click "fetches" the full thread.
+ */
+export const ShowMoreComments = () => {
+  const [post, setPost] = useState<SocialPost>(() => ({
+    ...makePost(0),
+    commentCount: longThread.length,
+    comments: longThread.slice(-3)
+  }));
+  const loadThread = useCallback(async (expanded: boolean) => {
+    if (!expanded) return;
+    await pause(600);
+    setPost((current) => ({ ...current, comments: longThread }));
+  }, []);
+
+  return (
+    <PostRoot post={post} onCommentsExpandedChange={loadThread}>
+      <PostMedia />
+      <div className="rsf-post__body">
+        <PostCaption />
+        <PostComments previewCount={3} pageSize={5} loadingLabel="Loading comments…" />
+      </div>
+    </PostRoot>
+  );
+};
 
 export const InfiniteVirtualFeed = () => {
   const [posts, setPosts] = useState(() => makePosts(10));

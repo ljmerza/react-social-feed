@@ -106,14 +106,135 @@ function groupThreads(visible: SocialComment[], all: SocialComment[]): CommentTh
   return [...threads.values()];
 }
 
-const defaultViewAllLabel = (count: number) => (count === 1 ? 'View 1 comment' : `View all ${count} comments`);
+/**
+ * Every loaded comment, grouped into whole threads (a top-level comment plus
+ * its replies; replies whose top-level comment isn't loaded share a group) and
+ * ordered by each thread's newest comment, newest first. Reveals take whole
+ * groups so a thread is never split.
+ */
+function revealUnits(comments: SocialComment[]): SocialComment[][] {
+  const byId = new Map(comments.map((comment) => [comment.id, comment]));
+  const units = new Map<string, SocialComment[]>();
+  for (const comment of comments) {
+    const rootId = threadRootId(comment, byId);
+    units.set(rootId, [...(units.get(rootId) ?? []), comment]);
+  }
+  const order: SocialComment[][] = [];
+  const seen = new Set<string>();
+  for (let index = comments.length - 1; index >= 0; index--) {
+    const rootId = threadRootId(comments[index]!, byId);
+    if (!seen.has(rootId)) {
+      seen.add(rootId);
+      order.push(units.get(rootId)!);
+    }
+  }
+  return order;
+}
 
-export interface PostCommentsProps extends Omit<ComponentPropsWithoutRef<'div'>, 'children'> {
-  /** Comments shown while collapsed. Default 2; the newest ones are shown. */
+/** Ids of the comments visible after `page` "Show more" steps. */
+function revealedIds(comments: SocialComment[], previewCount: number, pageSize: number | undefined, page: number) {
+  const units = revealUnits(comments);
+  let taken = 0;
+  let shown = 0;
+  const take = (target: number) => {
+    while (taken < units.length && shown < target) shown += units[taken++]!.length;
+  };
+
+  take(previewCount);
+  for (let step = 0; step < page && taken < units.length; step++) {
+    take(pageSize === undefined ? Infinity : shown + Math.max(1, pageSize));
+  }
+  return new Set(units.slice(0, taken).flatMap((unit) => unit.map((comment) => comment.id)));
+}
+
+export interface PostCommentRevealOptions {
+  /** Comments shown before any "Show more" step (and after collapsing). Default 2. */
   previewCount?: number;
+  /**
+   * Comments each "Show more" step reveals. Omit to reveal everything on the
+   * first step. A step may reveal a few more than this to finish a thread.
+   */
+  pageSize?: number;
+}
+
+export interface PostCommentReveal {
+  /** Visible comments, oldest first. */
+  comments: SocialComment[];
+  visibleCount: number;
+  /** `post.commentCount`, or the number loaded if that's higher. */
+  totalCount: number;
+  /** Comments not shown yet, loaded or not. */
+  remainingCount: number;
+  loadedCount: number;
+  /** "Show more" steps taken since the list was last collapsed. */
+  page: number;
+  /** A "Show more" step would reveal loaded comments or ask for more. */
+  canShowMore: boolean;
+  /** Expanded with every loaded comment shown, waiting for `post.comments` to grow to `commentCount`. */
+  isLoadingMore: boolean;
+  /** Collapsing would hide something. */
+  canCollapse: boolean;
+  /** Take one step. The first fires `onCommentsExpandedChange(true)` so the app can load the full thread. */
+  showMore: () => void;
+  /** Back to the preview (page 0). */
+  collapse: () => void;
+}
+
+/**
+ * The comment list's reveal state: which comments are visible and how to show
+ * more. `PostComments` renders from this; use it directly for a custom list.
+ * Must be called inside a `PostRoot` or `PostContextProvider`.
+ */
+export function usePostCommentReveal({ previewCount = 2, pageSize }: PostCommentRevealOptions = {}): PostCommentReveal {
+  const { post, commentCount, commentPage, showMoreComments, setCommentsExpanded } =
+    usePostContext('usePostCommentReveal');
+  const loaded = post.comments ?? [];
+  const ids = revealedIds(loaded, previewCount, pageSize, commentPage);
+  const comments = loaded.filter((comment) => ids.has(comment.id));
+  const totalCount = Math.max(commentCount, loaded.length);
+  const remainingCount = totalCount - comments.length;
+  const isLoadingMore = commentPage > 0 && comments.length === loaded.length && remainingCount > 0;
+  const collapsedCount = commentPage > 0 ? revealedIds(loaded, previewCount, pageSize, 0).size : comments.length;
+
+  return {
+    comments,
+    visibleCount: comments.length,
+    totalCount,
+    remainingCount,
+    loadedCount: loaded.length,
+    page: commentPage,
+    canShowMore: remainingCount > 0 && !isLoadingMore,
+    isLoadingMore,
+    canCollapse: commentPage > 0 && comments.length > collapsedCount,
+    showMore: () => {
+      if (remainingCount > 0 && !isLoadingMore) showMoreComments();
+    },
+    collapse: () => setCommentsExpanded(false)
+  };
+}
+
+const defaultViewAllLabel = (count: number) => (count === 1 ? 'View 1 comment' : `View all ${count} comments`);
+const defaultShowMoreLabel = (remaining: number) =>
+  remaining === 1 ? 'View 1 more comment' : `View more comments (${remaining})`;
+
+export interface PostCommentsProps extends PostCommentRevealOptions, Omit<ComponentPropsWithoutRef<'div'>, 'children'> {
   renderComment?: (comment: SocialComment) => ReactNode;
+  /** "Show more" label when `pageSize` is not set. Default "View all N comments". */
   viewAllLabel?: (count: number) => ReactNode;
+  /**
+   * "Show more" label. Defaults to `viewAllLabel` without `pageSize`, else
+   * "View more comments (N)". `remaining` counts unloaded comments too.
+   */
+  showMoreLabel?: (remaining: number, total: number) => ReactNode;
+  /** Shown in place of "Show more" while waiting for more comments to load. Default: nothing. */
+  loadingLabel?: ReactNode;
   hideLabel?: ReactNode;
+  /** Where the "Show more" control sits: above the list (default) or below it. */
+  showMorePosition?: 'start' | 'end';
+  /** Replaces the "Show more" control. Called whenever comments remain hidden, including while loading. */
+  renderShowMore?: (reveal: PostCommentReveal) => ReactNode;
+  /** Replaces the "Hide comments" control. Called whenever collapsing would hide something. */
+  renderHide?: (reveal: PostCommentReveal) => ReactNode;
   /** Label for each comment's reply button (default rows only). */
   replyLabel?: ReactNode;
   /** Accessible label for each comment's delete button (default rows only). */
@@ -121,21 +242,27 @@ export interface PostCommentsProps extends Omit<ComponentPropsWithoutRef<'div'>,
 }
 
 export function PostComments({
-  previewCount = 2,
+  previewCount,
+  pageSize,
   renderComment,
   viewAllLabel = defaultViewAllLabel,
+  showMoreLabel,
+  loadingLabel,
   hideLabel = 'Hide comments',
+  showMorePosition = 'start',
+  renderShowMore,
+  renderHide,
   replyLabel,
   deleteLabel,
   className,
   ...props
 }: PostCommentsProps) {
-  const { post, commentCount, commentsExpanded, setCommentsExpanded } = usePostContext('PostComments');
+  const { post } = usePostContext('PostComments');
+  const reveal = usePostCommentReveal({ previewCount, pageSize });
   const comments = post.comments ?? [];
-  const visible = commentsExpanded ? comments : comments.slice(Math.max(0, comments.length - previewCount));
-  const hasHidden = commentCount > visible.length;
+  const visible = reveal.comments;
 
-  if (commentCount === 0 && comments.length === 0) return null;
+  if (reveal.totalCount === 0) return null;
 
   const renderRow = (comment: SocialComment, replies?: ReactNode) =>
     renderComment ? (
@@ -149,13 +276,35 @@ export function PostComments({
       </PostComment>
     );
 
+  const label = showMoreLabel
+    ? showMoreLabel(reveal.remainingCount, reveal.totalCount)
+    : pageSize === undefined
+      ? viewAllLabel(reveal.totalCount)
+      : defaultShowMoreLabel(reveal.remainingCount);
+
+  const showMore =
+    reveal.remainingCount > 0 &&
+    (renderShowMore ? (
+      renderShowMore(reveal)
+    ) : reveal.isLoadingMore ? (
+      loadingLabel != null && (
+        <span className="rsf-post__comments-loading" role="status">
+          {loadingLabel}
+        </span>
+      )
+    ) : (
+      <button
+        type="button"
+        className="rsf-post__comments-toggle rsf-post__comments-toggle--more"
+        onClick={reveal.showMore}
+      >
+        {label}
+      </button>
+    ));
+
   return (
     <div className={cx('rsf-post__comments', className)} {...props}>
-      {!commentsExpanded && hasHidden && (
-        <button type="button" className="rsf-post__comments-toggle" onClick={() => setCommentsExpanded(true)}>
-          {viewAllLabel(commentCount)}
-        </button>
-      )}
+      {showMorePosition === 'start' && showMore}
       {visible.length > 0 && (
         <ul className="rsf-post__comment-list">
           {groupThreads(visible, comments).map(({ comment, replies }) =>
@@ -168,11 +317,19 @@ export function PostComments({
           )}
         </ul>
       )}
-      {commentsExpanded && comments.length > previewCount && (
-        <button type="button" className="rsf-post__comments-toggle" onClick={() => setCommentsExpanded(false)}>
-          {hideLabel}
-        </button>
-      )}
+      {showMorePosition === 'end' && showMore}
+      {reveal.canCollapse &&
+        (renderHide ? (
+          renderHide(reveal)
+        ) : (
+          <button
+            type="button"
+            className="rsf-post__comments-toggle rsf-post__comments-toggle--hide"
+            onClick={reveal.collapse}
+          >
+            {hideLabel}
+          </button>
+        ))}
     </div>
   );
 }

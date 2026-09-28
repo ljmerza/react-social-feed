@@ -1,7 +1,8 @@
-import type { ComponentPropsWithoutRef, ReactNode } from 'react';
+import type { ComponentPropsWithoutRef, MouseEvent, ReactNode } from 'react';
 import { usePostContext } from '../context/PostContext';
 import { usePostIcons } from '../context/PostIconsContext';
 import type { ShareStatus } from '../types';
+import { useLongPress, type UseLongPressOptions } from '../useLongPress';
 import { cx, renderChildren, type RenderableChildren } from '../utils';
 import type { PostState } from '../usePostState';
 
@@ -68,28 +69,108 @@ type ActionButtonProps<State> = Omit<PostActionProps, 'children' | 'icon'> & {
 
 const renderCount = (count: number) => (count > 0 ? count.toLocaleString() : undefined);
 
+export type LikeLongPressOptions = Pick<UseLongPressOptions, 'delay' | 'moveTolerance' | 'keyShortcut'>;
+
 export type PostLikeButtonProps = ActionButtonProps<{ liked: boolean; likeCount: number }> & {
   /** Accessible label; defaults to "Like"/"Unlike". */
   label?: (liked: boolean) => string;
   /** Show the like count next to the icon. Default true. */
   showCount?: boolean;
+  /**
+   * Long-press (or `keyShortcut`, default Shift+Enter) to open the likers list.
+   * On by default when the root has `onLikeLongPress` or `onLikersOpenChange`;
+   * `true` forces it on, `false` off, and an object tunes it.
+   */
+  longPress?: boolean | LikeLongPressOptions;
+  /**
+   * Screen-reader hint (`aria-description`) while long-press is on. Default
+   * "Long press or press Shift+Enter to see who liked this"; `false` omits it.
+   */
+  likersHint?: string | false;
 };
 
-export function PostLikeButton({ children, className, label, showCount = true, onClick, ...props }: PostLikeButtonProps) {
-  const { liked, likeCount, toggleLike } = usePostContext('PostLikeButton');
+const defaultLikersHint = (keyShortcut: string | false) =>
+  keyShortcut ? `Long press or press ${keyShortcut} to see who liked this` : 'Long press to see who liked this';
+
+export function PostLikeButton({
+  children,
+  className,
+  label,
+  showCount = true,
+  longPress,
+  likersHint,
+  onClick,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerLeave,
+  onPointerCancel,
+  onContextMenu,
+  onKeyDown,
+  ...props
+}: PostLikeButtonProps) {
+  const { liked, likeCount, toggleLike, canShowLikers, openLikers } = usePostContext('PostLikeButton');
   const icons = usePostIcons();
   const custom = children !== undefined;
+  const longPressOn = longPress === undefined ? canShowLikers : longPress !== false;
+  const longPressOptions = typeof longPress === 'object' ? longPress : {};
+  const keyShortcut = longPressOptions.keyShortcut ?? 'Shift+Enter';
+
+  const { longPressProps: lp, isPressing } = useLongPress({
+    ...longPressOptions,
+    keyShortcut,
+    disabled: !longPressOn,
+    onLongPress: openLikers,
+    onPress: (event) => {
+      onClick?.(event as MouseEvent<HTMLButtonElement>);
+      if (!event.defaultPrevented) toggleLike();
+    }
+  });
+  const hint = likersHint ?? defaultLikersHint(keyShortcut);
 
   return (
     <PostAction
-      className={cx('rsf-post__like-button', liked && 'rsf-post__like-button--active', className)}
+      className={cx(
+        'rsf-post__like-button',
+        liked && 'rsf-post__like-button--active',
+        longPressOn && 'rsf-long-press',
+        className
+      )}
       active={liked}
       aria-pressed={liked}
       aria-label={label ? label(liked) : liked ? 'Unlike' : 'Like'}
+      aria-keyshortcuts={lp['aria-keyshortcuts']}
+      aria-description={longPressOn && hint ? hint : undefined}
+      data-pressing={isPressing || undefined}
       icon={custom ? undefined : liked ? icons.liked : icons.like}
-      onClick={(event) => {
-        onClick?.(event);
-        if (!event.defaultPrevented) toggleLike();
+      onClick={lp.onClick}
+      onPointerDown={(event) => {
+        onPointerDown?.(event);
+        lp.onPointerDown(event);
+      }}
+      onPointerMove={(event) => {
+        onPointerMove?.(event);
+        lp.onPointerMove(event);
+      }}
+      onPointerUp={(event) => {
+        onPointerUp?.(event);
+        lp.onPointerUp(event);
+      }}
+      onPointerLeave={(event) => {
+        onPointerLeave?.(event);
+        lp.onPointerLeave(event);
+      }}
+      onPointerCancel={(event) => {
+        onPointerCancel?.(event);
+        lp.onPointerCancel(event);
+      }}
+      onContextMenu={(event) => {
+        onContextMenu?.(event);
+        lp.onContextMenu(event);
+      }}
+      onKeyDown={(event) => {
+        onKeyDown?.(event);
+        if (!event.defaultPrevented) lp.onKeyDown(event);
       }}
       {...props}
     >
