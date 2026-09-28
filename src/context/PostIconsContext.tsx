@@ -1,11 +1,14 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import { ChevronIcon, CloseIcon, MessageIcon, SendIcon, ShareIcon, StarIcon } from '../icons';
+import { BookmarkIcon, ChevronIcon, CloseIcon, MessageIcon, SendIcon, ShareIcon, StarIcon } from '../icons';
 
 /** Every icon the built-in primitives draw. Override any subset via `icons`. */
 export interface PostIcons {
   like: ReactNode;
   /** Shown on the like button while liked. */
   liked: ReactNode;
+  favorite: ReactNode;
+  /** Shown on the favorite button while favorited. */
+  favorited: ReactNode;
   comment: ReactNode;
   share: ReactNode;
   send: ReactNode;
@@ -20,6 +23,8 @@ export interface PostIcons {
 export const defaultPostIcons: PostIcons = {
   like: <StarIcon />,
   liked: <StarIcon filled />,
+  favorite: <BookmarkIcon />,
+  favorited: <BookmarkIcon filled />,
   comment: <MessageIcon />,
   share: <ShareIcon />,
   send: <SendIcon />,

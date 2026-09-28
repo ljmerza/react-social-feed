@@ -165,6 +165,23 @@ export const LongPressLikers = () => {
   );
 };
 
+/**
+ * Pass `onFavoriteChange` and the bookmark joins the action row, next to share.
+ * Favorites are private to the viewer, so the button has no count. The first
+ * post starts favorited; the second fails, to show the rollback.
+ */
+export const Favorites = () => {
+  return (
+    <div style={{ display: 'grid', gap: 24 }}>
+      <FeedPost post={{ ...makePost(0), favorited: true }} onFavoriteChange={() => pause(300)} />
+      <FeedPost
+        post={makePost(2)}
+        onFavoriteChange={() => pause(600).then(() => Promise.reject(new Error('offline')))}
+      />
+    </div>
+  );
+};
+
 export const MinimalCard = () => (
   <PostRoot post={makePost(3)} style={{ maxWidth: 320 }}>
     <PostMedia />

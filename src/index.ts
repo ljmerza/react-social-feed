@@ -53,6 +53,7 @@ export {
   PostAction,
   PostActionSpacer,
   PostLikeButton,
+  PostFavoriteButton,
   PostCommentButton,
   PostShareButton,
   PostLikeCount,
@@ -60,6 +61,7 @@ export {
   type PostActionProps,
   type PostLikeButtonProps,
   type LikeLongPressOptions,
+  type PostFavoriteButtonProps,
   type PostCommentButtonProps,
   type PostShareButtonProps,
   type PostLikeCountProps
@@ -88,4 +90,4 @@ export {
   type UsePostLikersOptions
 } from './primitives/PostLikers';
 export { FeedPost, type FeedPostProps } from './FeedPost';
-export { StarIcon, MessageIcon, ShareIcon, SendIcon, ChevronIcon } from './icons';
+export { StarIcon, BookmarkIcon, MessageIcon, ShareIcon, SendIcon, ChevronIcon } from './icons';

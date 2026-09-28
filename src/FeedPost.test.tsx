@@ -9,6 +9,7 @@ import {
   PostCommentButton,
   PostCommentForm,
   PostComments,
+  PostFavoriteButton,
   PostLikeButton,
   PostLikeCount,
   PostMedia,
@@ -31,6 +32,7 @@ const makePost = (overrides: Partial<SocialPost> = {}): SocialPost => ({
 });
 
 const likeButton = () => screen.getByRole('button', { name: /^(like|unlike)$/i });
+const favoriteButton = () => screen.getByRole('button', { name: /favorites$/i });
 
 afterEach(() => {
   cleanup();
@@ -152,6 +154,106 @@ describe('likes', () => {
     doubleTap();
     expect(onLikeChange).toHaveBeenCalledTimes(1);
     expect(likeButton().getAttribute('aria-pressed')).toBe('true');
+  });
+});
+
+describe('favorites', () => {
+  it('toggles optimistically and reports the new state', () => {
+    const onFavoriteChange = vi.fn();
+    const post = makePost();
+    const { container } = render(
+      <PostRoot post={post} onFavoriteChange={onFavoriteChange}>
+        <PostFavoriteButton />
+      </PostRoot>
+    );
+
+    expect(favoriteButton().getAttribute('aria-label')).toBe('Add to favorites');
+    expect(favoriteButton().getAttribute('aria-pressed')).toBe('false');
+
+    fireEvent.click(favoriteButton());
+    expect(onFavoriteChange).toHaveBeenCalledWith(true, post);
+    expect(favoriteButton().getAttribute('aria-label')).toBe('Remove from favorites');
+    expect(favoriteButton().getAttribute('aria-pressed')).toBe('true');
+    expect(container.querySelector('article')?.hasAttribute('data-favorited')).toBe(true);
+
+    fireEvent.click(favoriteButton());
+    expect(onFavoriteChange).toHaveBeenLastCalledWith(false, post);
+    expect(favoriteButton().getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('rolls back when the handler rejects', async () => {
+    let reject!: (error: Error) => void;
+    const onFavoriteChange = vi.fn(() => new Promise((_, r) => (reject = r)));
+    render(
+      <PostRoot post={makePost()} onFavoriteChange={onFavoriteChange}>
+        <PostFavoriteButton />
+      </PostRoot>
+    );
+
+    fireEvent.click(favoriteButton());
+    expect(favoriteButton().getAttribute('aria-pressed')).toBe('true');
+
+    await act(async () => reject(new Error('offline')));
+    expect(favoriteButton().getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('resyncs from props when the post changes underneath it', () => {
+    const { rerender } = render(
+      <PostRoot post={makePost({ favorited: true })}>
+        <PostFavoriteButton />
+      </PostRoot>
+    );
+    fireEvent.click(favoriteButton());
+    expect(favoriteButton().getAttribute('aria-pressed')).toBe('false');
+
+    rerender(
+      <PostRoot post={makePost({ favorited: false })}>
+        <PostFavoriteButton />
+      </PostRoot>
+    );
+    rerender(
+      <PostRoot post={makePost({ favorited: true })}>
+        <PostFavoriteButton />
+      </PostRoot>
+    );
+    expect(favoriteButton().getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('joins the default action row only with a handler', () => {
+    const { rerender } = render(
+      <PostRoot post={makePost()}>
+        <PostActions />
+      </PostRoot>
+    );
+    expect(screen.queryByRole('button', { name: /favorites$/i })).toBeNull();
+
+    rerender(
+      <PostRoot post={makePost()} onFavoriteChange={() => {}}>
+        <PostActions />
+      </PostRoot>
+    );
+    const buttons = screen.getAllByRole('button').map((button) => button.getAttribute('aria-label'));
+    // Pushed right with share, ahead of it.
+    expect(buttons.slice(-2)).toEqual(['Add to favorites', 'Share']);
+  });
+
+  it('accepts custom labels, icons and render props', () => {
+    const { rerender } = render(
+      <PostRoot post={makePost()} icons={{ favorite: <span>☆</span>, favorited: <span>★</span> }}>
+        <PostFavoriteButton label={(on) => (on ? 'Unsave' : 'Save')} />
+      </PostRoot>
+    );
+    const save = screen.getByRole('button', { name: 'Save' });
+    expect(save.textContent).toBe('☆');
+    fireEvent.click(save);
+    expect(screen.getByRole('button', { name: 'Unsave' }).textContent).toBe('★');
+
+    rerender(
+      <PostRoot post={makePost({ favorited: true })}>
+        <PostFavoriteButton aria-label="Saved">{({ favorited }) => (favorited ? 'saved' : 'save')}</PostFavoriteButton>
+      </PostRoot>
+    );
+    expect(screen.getByRole('button', { name: 'Saved' }).textContent).toBe('saved');
   });
 });
 
