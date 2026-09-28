@@ -52,6 +52,17 @@ export interface UsePostStateOptions {
   defaultCommentPage?: number;
   /** Fired whenever the comment page changes, including collapsing back to 0. */
   onCommentPageChange?: (page: number, post: SocialPost) => void;
+  /**
+   * Turns on long-press (and Shift+Enter) on the like button to show who liked
+   * the post, and fires when it happens. Render the list yourself, e.g. with
+   * `PostLikers` in a dialog.
+   */
+  onLikeLongPress?: (post: SocialPost) => void;
+  /** Whether the likers list is open. Pass it to control the state yourself. */
+  likersOpen?: boolean;
+  defaultLikersOpen?: boolean;
+  /** Fired when the likers list opens/closes. Also turns on long-press on the like button. */
+  onLikersOpenChange?: (open: boolean, post: SocialPost) => void;
   /** How long a share status ('copied', 'shared', 'error') lingers before resetting. */
   shareStatusResetMs?: number;
 }
@@ -67,6 +78,12 @@ export interface PostState {
   /** Increments every time a like is triggered from the media (double-tap). */
   likeBurstKey: number;
   likeFromMedia: () => void;
+  /** Whether the root has a likers handler, so the like button long-presses by default. */
+  canShowLikers: boolean;
+  likersOpen: boolean;
+  setLikersOpen: (open: boolean) => void;
+  /** What a long press on the like button does: fires `onLikeLongPress` and opens the likers list. */
+  openLikers: () => void;
 
   mediaCount: number;
   activeMediaIndex: number;
@@ -125,6 +142,10 @@ export function usePostState({
   commentPage: controlledCommentPage,
   defaultCommentPage,
   onCommentPageChange,
+  onLikeLongPress,
+  likersOpen: likersOpenProp,
+  defaultLikersOpen = false,
+  onLikersOpenChange,
   shareStatusResetMs = 2000
 }: UsePostStateOptions): PostState {
   // --- Likes: optimistic overlay on top of the post props -------------------
@@ -165,6 +186,21 @@ export function usePostState({
     setLikeBurstKey((key) => key + 1);
     setLiked(true);
   }, [setLiked]);
+
+  // --- Likers: controlled when `likersOpen` is passed -----------------------
+  const [likersOpenState, setLikersOpenState] = useState(defaultLikersOpen);
+  const likersOpen = likersOpenProp ?? likersOpenState;
+  const setLikersOpen = useCallback(
+    (open: boolean) => {
+      setLikersOpenState(open);
+      onLikersOpenChange?.(open, post);
+    },
+    [onLikersOpenChange, post]
+  );
+  const openLikers = useCallback(() => {
+    onLikeLongPress?.(post);
+    setLikersOpen(true);
+  }, [onLikeLongPress, post, setLikersOpen]);
 
   // --- Media carousel --------------------------------------------------------
   const mediaCount = post.media.length;
@@ -318,6 +354,10 @@ export function usePostState({
     setLiked,
     likeBurstKey,
     likeFromMedia,
+    canShowLikers: Boolean(onLikeLongPress || onLikersOpenChange),
+    likersOpen,
+    setLikersOpen,
+    openLikers,
     mediaCount,
     activeMediaIndex,
     goToMedia,

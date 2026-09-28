@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type CSSProperties } from 'react';
 import {
   FeedPost,
   PostAction,
@@ -12,12 +12,14 @@ import {
   PostHeader,
   PostLikeButton,
   PostLikeCount,
+  PostLikers,
   PostMedia,
   PostRoot,
   PostShareButton,
   PostTimestamp,
   PostTitle,
   type CommentSubmitOptions,
+  type SocialAuthor,
   type SocialComment,
   type SocialPost
 } from '../index';
@@ -123,6 +125,43 @@ export const CustomComposition = () => {
         <PostCaption showAuthor={false} />
       </div>
     </PostRoot>
+  );
+};
+
+const fakeLikers = (post: SocialPost): Promise<SocialAuthor[]> =>
+  pause(600).then(() =>
+    Array.from({ length: post.likeCount }, (_, n) => ({
+      id: `liker-${n}`,
+      name: ['Maya Chen', 'Leo Park', 'Grandma June', 'Sam Rivera', 'Aunt Priya', 'Noah Kim'][n % 6]!,
+      avatarUrl: n % 3 === 0 ? undefined : `https://i.pravatar.cc/64?u=liker-${n}`
+    }))
+  );
+
+/**
+ * Long-press the star (or focus it and press Shift+Enter) to see who liked the
+ * post. The library only renders the list; where it goes is up to you. Here it
+ * sits in a native `<dialog>`.
+ */
+export const LongPressLikers = () => {
+  const [open, setOpen] = useState(false);
+  const post = makePost(0);
+  return (
+    <>
+      <FeedPost post={post} likersOpen={open} onLikersOpenChange={setOpen} />
+      {open && (
+        <dialog
+          open
+          aria-label="Liked by"
+          style={{ position: 'fixed', inset: 0, margin: 'auto', width: 320, borderRadius: 16, fontFamily: 'sans-serif' }}
+        >
+          <h2 style={{ marginTop: 0, fontSize: 16 }}>Liked by</h2>
+          <PostLikers post={post} loadLikers={fakeLikers} style={{ '--rsf-likers-max-height': '320px' } as CSSProperties} />
+          <button type="button" onClick={() => setOpen(false)} style={{ marginTop: 16 }}>
+            Close
+          </button>
+        </dialog>
+      )}
+    </>
   );
 };
 

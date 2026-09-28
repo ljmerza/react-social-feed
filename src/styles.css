@@ -25,6 +25,10 @@
   --rsf-font-size: 0.9rem;
   /* Space between comments, and between a comment and its replies. */
   --rsf-comment-gap: 0.875rem;
+  /* Likers list (PostLikers). */
+  --rsf-likers-gap: 0.625rem;
+  --rsf-likers-avatar-size: 32px;
+  --rsf-likers-max-height: none;
   --rsf-post-max-width: 520px;
   --rsf-shadow-post: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
 }
@@ -548,6 +552,73 @@
 .rsf-post__comment-submit:disabled {
   opacity: 0.35;
   cursor: default;
+}
+
+/* Long press: no iOS callout or text selection while holding. */
+.rsf-long-press {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* Likers list */
+.rsf-likers {
+  color: inherit;
+  font-size: var(--rsf-font-size);
+  line-height: 1.4;
+}
+
+.rsf-likers__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rsf-likers-gap);
+  max-height: var(--rsf-likers-max-height);
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.rsf-likers__item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.rsf-likers__avatar {
+  width: var(--rsf-likers-avatar-size);
+  height: var(--rsf-likers-avatar-size);
+}
+
+.rsf-likers__name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.rsf-likers__name a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.rsf-likers__status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  color: var(--rsf-color-text-muted);
+}
+
+.rsf-likers__retry {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--rsf-color-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 /* Virtual feed */

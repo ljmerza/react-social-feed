@@ -8,6 +8,13 @@ export {
   type ReplyTarget,
   type UsePostStateOptions
 } from './usePostState';
+export {
+  useLongPress,
+  type LongPressEvent,
+  type LongPressProps,
+  type UseLongPressOptions,
+  type UseLongPressResult
+} from './useLongPress';
 export { usePostContext, PostContextProvider, type PostContextProviderProps } from './context/PostContext';
 export {
   usePostIcons,
@@ -52,6 +59,7 @@ export {
   type PostActionsProps,
   type PostActionProps,
   type PostLikeButtonProps,
+  type LikeLongPressOptions,
   type PostCommentButtonProps,
   type PostShareButtonProps,
   type PostLikeCountProps
@@ -69,5 +77,15 @@ export {
   type PostCommentReveal,
   type PostCommentRevealOptions
 } from './primitives/PostComments';
+export {
+  PostLikers,
+  PostLiker,
+  usePostLikers,
+  type PostLikersProps,
+  type PostLikerProps,
+  type PostLikersState,
+  type PostLikersStatus,
+  type UsePostLikersOptions
+} from './primitives/PostLikers';
 export { FeedPost, type FeedPostProps } from './FeedPost';
 export { StarIcon, MessageIcon, ShareIcon, SendIcon, ChevronIcon } from './icons';

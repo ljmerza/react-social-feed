@@ -114,6 +114,9 @@ interface SocialPost {
 Pass `width` and `height` for media whenever you have them. In a virtualized
 list, that decides whether rows stay put or jump as images load.
 
+The likers list (see [Who liked it](#who-liked-it)) takes the same author shape:
+`Array<{ id?: string; name: string; avatarUrl?: string; href?: string }>`.
+
 ## Behaviour
 
 Every handler is optional. The state lives in `PostRoot` (which `FeedPost` wraps).
@@ -128,10 +131,95 @@ Every handler is optional. The state lives in `PostRoot` (which `FeedPost` wraps
 | `onShare(post)` | Custom share. Without it the button uses the Web Share API with `post.shareUrl`, falls back to copying the link, and is disabled when there is no URL. |
 | `defaultCommentsExpanded` | Start one "Show more" step in: the full list without `pageSize`, the preview plus one page with it. |
 | `commentPage`, `defaultCommentPage`, `onCommentPageChange(page, post)` | The comment reveal position: how many "Show more" steps have been taken (0 = preview, `Infinity` = everything). Pass `commentPage` to control it. |
+| `onLikeLongPress(post)` | Turns on long-press (and Shift+Enter) on the like button and fires when it happens. The press doesn't toggle the like. See [Who liked it](#who-liked-it). |
+| `likersOpen`, `defaultLikersOpen`, `onLikersOpenChange(open, post)` | Open state of the likers list, controlled or not. `onLikersOpenChange` also turns on long-press. |
 | `shareStatusResetMs` | How long `'shared'`/`'copied'`/`'error'` stays before resetting. Default 2000. |
 
 Double-tapping or double-clicking the media likes the post and plays a short
 burst animation. It never unlikes. Turn it off with `<PostMedia likeOnDoubleTap={false} />`.
+
+## Who liked it
+
+Long-pressing the like button (about half a second, mouse or touch) opens the
+list of likers instead of toggling the like. A normal tap still likes, and
+double-tapping the media still likes. Pass `onLikeLongPress` or
+`onLikersOpenChange` to turn it on, then render `PostLikers` wherever you like:
+a dialog, a popover, a bottom sheet, or inline under the actions.
+
+```tsx
+import { FeedPost, PostLikers } from 'react-social-feed';
+
+const [likersOpen, setLikersOpen] = useState(false);
+
+<FeedPost post={post} likersOpen={likersOpen} onLikersOpenChange={setLikersOpen} />
+<MyDialog open={likersOpen} onClose={() => setLikersOpen(false)} title="Liked by">
+  <PostLikers post={post} loadLikers={(post) => api.likers(post.id)} />
+</MyDialog>
+```
+
+`PostLikers` fetches on mount with `loadLikers(post)`, so rendering it only while
+open means you only fetch when someone asks. If you fetch yourself (e.g. with
+TanStack Query), pass `likers`, `loading`, `error` and `onRetry` instead. Inside a
+`PostRoot` it reads the post from context; elsewhere pass `post`.
+
+| `PostLikers` prop | What it does |
+|---|---|
+| `loadLikers(post)` / `likers` | Where the list comes from. `likers` wins when both are set. |
+| `loading`, `error`, `onRetry` | Loading/error state for `likers` you fetch yourself. Retry defaults to calling `loadLikers` again. |
+| `renderLiker(liker, index)` | Replaces each row's content (still inside an `<li>`). `PostLiker` is the default row. |
+| `renderLoading()`, `renderEmpty()`, `renderError(error, retry)` | Replace a whole state. |
+| `loadingLabel`, `emptyLabel`, `errorLabel`, `retryLabel`, `listLabel` | Change the default text (defaults: "Loading…", "No likes yet", "Couldn't load likes", "Try again", and "Liked by" as the list's accessible name). |
+| `children(state)` | Render everything yourself from `{ likers, status, error, retry }`. `usePostLikers(options)` gives you the same state without the component. |
+
+The wrapper carries `data-status` (`loading`, `error`, `empty` or `ready`) and
+`aria-busy` while loading.
+
+`PostLikeButton` tunes the gesture with `longPress`: leave it unset to follow the
+root, pass `false` to turn it off, `true` to force it on (it then just flips
+`likersOpen`), or `{ delay, moveTolerance, keyShortcut }` (defaults 500ms, 10px,
+`'Shift+Enter'`). While a press is held the button gets `data-pressing`.
+
+**Accessibility.** A long press can't be done from a keyboard or a screen
+reader, so the like button also opens the likers with **Shift+Enter**. It
+announces the shortcut with `aria-keyshortcuts` and a hint through
+`aria-description` ("Long press or press Shift+Enter to see who liked this";
+change it with `likersHint`, or `false` to drop it). For a visible way in, add
+your own button that calls `openLikers` from `usePostContext()`, e.g. on the
+like count:
+
+```tsx
+function LikersLink() {
+  const { likeCount, openLikers } = usePostContext();
+  return <button onClick={openLikers}>{likeCount} likes</button>;
+}
+```
+
+### `useLongPress`
+
+The hook behind the like button, for any element:
+
+```tsx
+import { useLongPress } from 'react-social-feed';
+
+const { longPressProps, isPressing } = useLongPress({
+  onLongPress: () => openMenu(),
+  onPress: () => openPhoto(), // a normal click
+  delay: 500,                 // ms
+  moveTolerance: 10,          // px of drift before it cancels
+  keyShortcut: 'Shift+Enter', // keyboard alternative; false turns it off
+  disabled: false
+});
+
+<div role="button" tabIndex={0} className="rsf-long-press" {...longPressProps}>…</div>
+```
+
+It uses Pointer Events, so mouse, touch and pen all work. The click that ends a
+long press is swallowed, so `onPress` doesn't run too. Moving past
+`moveTolerance`, leaving the element, a cancelled pointer, or scrolling cancels
+the press. The context menu is suppressed only while a press is held. Add the
+`rsf-long-press` class (from `styles.css`) or the same CSS yourself
+(`-webkit-touch-callout: none; user-select: none`) to stop the iOS callout and
+text selection. If you have your own handlers for the same events, call both.
 
 ## Icons and custom actions
 
@@ -212,13 +300,15 @@ import {
 | `PostMediaItem`, `PostMediaPrevButton`, `PostMediaNextButton`, `PostMediaCounter`, `PostMediaIndicators` | Carousel parts. The default overlay is arrows plus a "2 / 5" counter; `PostMediaIndicators` draws dots instead. Pass children to `PostMedia` to replace the overlay. |
 | `PostActions` | Like, comment and (pushed to the end) share by default. |
 | `PostAction`, `PostActionSpacer` | The shared action button, and a spacer that pushes later actions to the end. |
-| `PostLikeButton`, `PostCommentButton` | Icon plus count (`showCount={false}` hides it). Render-prop children replace both. |
+| `PostLikeButton`, `PostCommentButton` | Icon plus count (`showCount={false}` hides it). Render-prop children replace both. The like button long-presses to open the likers (`longPress`, `likersHint`). |
 | `PostShareButton` | Icon only. Render-prop children get the share status. |
 | `PostLikeCount` | A separate "N likes" line for layouts that hide the count on the button. `format(count, liked)`; return `null` to hide. |
 | `PostCaption` | Caption. `showAuthor` puts the author's name in front. |
 | `PostComments` | The newest `previewCount` comments plus a "Show more" control (all at once, or `pageSize` at a time) and "Hide comments", with replies nested one level under their top-level comment. See [Showing more comments](#showing-more-comments). |
 | `PostComment` | A single comment row, with a Reply button when commenting is on and a delete button when the comment is deletable. |
 | `PostCommentForm` | Input and send button, plus a "Replying to Name · Cancel" line while replying (Escape also cancels). Renders nothing without `onCommentSubmit`. |
+| `PostLikers` | The list of who liked the post, with loading, empty and error states. Doesn't need a `PostRoot` if you pass `post`. See [Who liked it](#who-liked-it). |
+| `PostLiker` | A single likers row: avatar (or initials) and name, linked when `href` is set. |
 
 To drop the `<article>` wrapper, call `usePostState(options)` yourself and pass
 the result to `PostContextProvider`. `usePostContext()` gives any custom
@@ -309,12 +399,17 @@ of rewriting rules:
   --rsf-media-inset: 0;   /* edge-to-edge photos */
   --rsf-media-fit: contain;
   --rsf-comment-gap: 1rem; /* space between comments and replies */
+  --rsf-likers-gap: 0.75rem; /* space between likers */
+  --rsf-likers-avatar-size: 40px;
+  --rsf-likers-max-height: 50vh; /* scroll long lists (default: none) */
 }
 ```
 
 A `.dark` block ships with the stylesheet and re-points those tokens. It keys off
 a `dark` class on an ancestor, so the consuming app decides when to switch.
 Every element uses a `rsf-` BEM class, and every primitive accepts `className`.
+The likers list is its own `rsf-likers` block (`__list`, `__item`, `__avatar`,
+`__name`, `__status`, `__retry`), since it usually renders outside the post.
 
 ## Development
 
