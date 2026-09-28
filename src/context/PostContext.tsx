@@ -22,3 +22,8 @@ export function usePostContext(componentName = 'usePostContext'): PostState {
 
   return context;
 }
+
+/** The nearest post state, or null outside a root (for primitives that also work standalone). */
+export function useOptionalPostContext(): PostState | null {
+  return useContext(PostContext);
+}

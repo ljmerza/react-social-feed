@@ -15,6 +15,14 @@ export function renderChildren<State>(
   return children ?? fallback;
 }
 
+export const initialsOf = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('');
+
 export const toDate = (value: string | Date | undefined): Date | null => {
   if (!value) return null;
   const date = value instanceof Date ? value : new Date(value);

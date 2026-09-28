@@ -21,6 +21,10 @@ export function PostRoot({
   onCommentDelete,
   onCommentsExpandedChange,
   defaultCommentsExpanded,
+  onLikeLongPress,
+  likersOpen,
+  defaultLikersOpen,
+  onLikersOpenChange,
   shareStatusResetMs,
   icons,
   children,
@@ -36,6 +40,10 @@ export function PostRoot({
     onCommentDelete,
     onCommentsExpandedChange,
     defaultCommentsExpanded,
+    onLikeLongPress,
+    likersOpen,
+    defaultLikersOpen,
+    onLikersOpenChange,
     shareStatusResetMs
   });
 
