@@ -140,6 +140,35 @@ Every handler is optional. The state lives in `PostRoot` (which `FeedPost` wraps
 Double-tapping or double-clicking the media likes the post and plays a short
 burst animation. It never unlikes. Turn it off with `<PostMedia likeOnDoubleTap={false} />`.
 
+A playing video pauses once less than a quarter of it is visible: scrolled out
+of view (window or any scroll container) or its carousel slide swiped away. It
+never resumes on its own and nothing autoplays. Fullscreen and picture-in-picture
+playback are left alone. Turn it off with `<FeedPost pauseVideosWhenHidden={false} />`
+or `<PostMedia pauseWhenHidden={false} />`. Browsers without IntersectionObserver
+just skip it.
+
+### `usePauseWhenHidden`
+
+The same behaviour for a video you render yourself, e.g. through
+`PostMedia`'s `renderItem`:
+
+```tsx
+import { useRef } from 'react';
+import { usePauseWhenHidden } from 'react-social-feed';
+
+function MyVideo({ src }: { src: string }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  usePauseWhenHidden(ref, {
+    threshold: 0.25, // pause below this visible fraction
+    enabled: true
+  });
+  return <video ref={ref} src={src} controls playsInline />;
+}
+```
+
+The element is read when the component mounts, so keep the same `<video>` for
+the component's lifetime.
+
 ## Who liked it
 
 Long-pressing the like button (about half a second, mouse or touch) opens the
@@ -298,7 +327,7 @@ import {
 | `PostRoot` | `<article>` plus the context. Takes `icons`. Children may be a function of the post state. |
 | `PostHeader` | Avatar, author and timestamp by default. |
 | `PostAvatar`, `PostAuthor`, `PostTimestamp`, `PostTitle` | The individual header parts. `PostTitle` accepts `as`. |
-| `PostMedia` | Scroll-snap carousel. Props: `aspectRatio`, `renderItem`, `likeOnDoubleTap`, `loading`. |
+| `PostMedia` | Scroll-snap carousel. Props: `aspectRatio`, `renderItem`, `likeOnDoubleTap`, `loading`, `pauseWhenHidden`. |
 | `PostMediaItem`, `PostMediaPrevButton`, `PostMediaNextButton`, `PostMediaCounter`, `PostMediaIndicators` | Carousel parts. The default overlay is arrows plus a "2 / 5" counter; `PostMediaIndicators` draws dots instead. Pass children to `PostMedia` to replace the overlay. |
 | `PostActions` | Like, comment and (pushed to the end) favorite and share by default. Favorite only appears when the root has `onFavoriteChange`. |
 | `PostAction`, `PostActionSpacer` | The shared action button, and a spacer that pushes later actions to the end. |
