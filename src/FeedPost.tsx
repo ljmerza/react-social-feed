@@ -7,6 +7,8 @@ import { PostRoot, type PostRootProps } from './primitives/PostRoot';
 export interface FeedPostProps extends Omit<PostRootProps, 'children'> {
   /** Fallback media aspect ratio when the first item has no dimensions. */
   mediaAspectRatio?: number | string;
+  /** Pause a playing video once it scrolls or is swiped out of view. Default true. */
+  pauseVideosWhenHidden?: boolean;
 }
 
 /**
@@ -14,11 +16,11 @@ export interface FeedPostProps extends Omit<PostRootProps, 'children'> {
  * title and caption, then the comment thread. Compose the primitives yourself
  * when you need a different arrangement.
  */
-export function FeedPost({ mediaAspectRatio, ...rootProps }: FeedPostProps) {
+export function FeedPost({ mediaAspectRatio, pauseVideosWhenHidden = true, ...rootProps }: FeedPostProps) {
   return (
     <PostRoot {...rootProps}>
       <PostHeader />
-      <PostMedia aspectRatio={mediaAspectRatio} />
+      <PostMedia aspectRatio={mediaAspectRatio} pauseWhenHidden={pauseVideosWhenHidden} />
       <div className="rsf-post__body">
         <PostActions />
         <PostTitle />

@@ -2,6 +2,7 @@ import { useRef, type ComponentPropsWithoutRef, type PointerEvent, type ReactNod
 import { usePostContext } from '../context/PostContext';
 import { usePostIcons } from '../context/PostIconsContext';
 import type { SocialMedia } from '../types';
+import { usePauseWhenHidden } from '../usePauseWhenHidden';
 import type { PostState } from '../usePostState';
 import { cx } from '../utils';
 
@@ -20,6 +21,12 @@ export interface PostMediaProps extends Omit<ComponentPropsWithoutRef<'div'>, 'c
   /** Double-tap/double-click the media to like (never unlikes). Default true. */
   likeOnDoubleTap?: boolean;
   loading?: 'lazy' | 'eager';
+  /**
+   * Pause a playing video once it scrolls out of view or its slide is swiped
+   * away. It never resumes on its own. Default true. Applies to the built-in
+   * items only; with `renderItem`, use `usePauseWhenHidden` on your own video.
+   */
+  pauseWhenHidden?: boolean;
   renderItem?: (media: SocialMedia, index: number, state: PostState) => ReactNode;
   /** Overlays rendered above the slides. Defaults to prev/next buttons and a position counter. */
   children?: ReactNode;
@@ -29,6 +36,7 @@ export function PostMedia({
   aspectRatio,
   likeOnDoubleTap = true,
   loading = 'lazy',
+  pauseWhenHidden = true,
   renderItem,
   children,
   className,
@@ -89,7 +97,11 @@ export function PostMedia({
             aria-roledescription={mediaCount > 1 ? 'slide' : undefined}
             aria-label={mediaCount > 1 ? `${index + 1} of ${mediaCount}` : undefined}
           >
-            {renderItem ? renderItem(media, index, state) : <PostMediaItem media={media} loading={loading} />}
+            {renderItem ? (
+              renderItem(media, index, state)
+            ) : (
+              <PostMediaItem media={media} loading={loading} pauseWhenHidden={pauseWhenHidden} />
+            )}
           </div>
         ))}
       </div>
@@ -115,24 +127,14 @@ export function PostMedia({
 export interface PostMediaItemProps {
   media: SocialMedia;
   loading?: 'lazy' | 'eager';
+  /** Pause a playing video once it is mostly out of view. Default true. */
+  pauseWhenHidden?: boolean;
   className?: string;
 }
 
-export function PostMediaItem({ media, loading = 'lazy', className }: PostMediaItemProps) {
+export function PostMediaItem({ media, loading = 'lazy', pauseWhenHidden = true, className }: PostMediaItemProps) {
   if (media.type === 'video') {
-    return (
-      <video
-        className={cx('rsf-post__media-item', className)}
-        src={media.src}
-        poster={media.poster}
-        width={media.width}
-        height={media.height}
-        controls
-        playsInline
-        preload="metadata"
-        aria-label={media.alt}
-      />
-    );
+    return <PostMediaVideo media={media} pauseWhenHidden={pauseWhenHidden} className={className} />;
   }
 
   return (
@@ -145,6 +147,35 @@ export function PostMediaItem({ media, loading = 'lazy', className }: PostMediaI
       loading={loading}
       decoding="async"
       draggable={false}
+    />
+  );
+}
+
+/** Its own component so the observed element never changes under the hook. */
+function PostMediaVideo({
+  media,
+  pauseWhenHidden,
+  className
+}: {
+  media: SocialMedia;
+  pauseWhenHidden: boolean;
+  className?: string;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  usePauseWhenHidden(videoRef, { enabled: pauseWhenHidden });
+
+  return (
+    <video
+      ref={videoRef}
+      className={cx('rsf-post__media-item', className)}
+      src={media.src}
+      poster={media.poster}
+      width={media.width}
+      height={media.height}
+      controls
+      playsInline
+      preload="metadata"
+      aria-label={media.alt}
     />
   );
 }

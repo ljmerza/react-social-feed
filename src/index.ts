@@ -15,6 +15,7 @@ export {
   type UseLongPressOptions,
   type UseLongPressResult
 } from './useLongPress';
+export { usePauseWhenHidden, type UsePauseWhenHiddenOptions } from './usePauseWhenHidden';
 export { usePostContext, PostContextProvider, type PostContextProviderProps } from './context/PostContext';
 export {
   usePostIcons,
