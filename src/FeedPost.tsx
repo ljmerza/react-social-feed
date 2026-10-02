@@ -9,6 +9,8 @@ export interface FeedPostProps extends Omit<PostRootProps, 'children'> {
   mediaAspectRatio?: number | string;
   /** Pause a playing video once it scrolls or is swiped out of view. Default true. */
   pauseVideosWhenHidden?: boolean;
+  /** When a video starts playing, pause any other library video that is playing. Default true. */
+  pauseOtherVideosOnPlay?: boolean;
 }
 
 /**
@@ -16,11 +18,20 @@ export interface FeedPostProps extends Omit<PostRootProps, 'children'> {
  * title and caption, then the comment thread. Compose the primitives yourself
  * when you need a different arrangement.
  */
-export function FeedPost({ mediaAspectRatio, pauseVideosWhenHidden = true, ...rootProps }: FeedPostProps) {
+export function FeedPost({
+  mediaAspectRatio,
+  pauseVideosWhenHidden = true,
+  pauseOtherVideosOnPlay = true,
+  ...rootProps
+}: FeedPostProps) {
   return (
     <PostRoot {...rootProps}>
       <PostHeader />
-      <PostMedia aspectRatio={mediaAspectRatio} pauseWhenHidden={pauseVideosWhenHidden} />
+      <PostMedia
+        aspectRatio={mediaAspectRatio}
+        pauseWhenHidden={pauseVideosWhenHidden}
+        pauseOthersOnPlay={pauseOtherVideosOnPlay}
+      />
       <div className="rsf-post__body">
         <PostActions />
         <PostTitle />
