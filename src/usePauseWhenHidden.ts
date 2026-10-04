@@ -24,7 +24,7 @@ type PresentableMedia = HTMLMediaElement & {
  * look hidden then (e.g. after rotating into landscape), but the user is
  * still watching.
  */
-function isPresentedOutsidePage(media: HTMLMediaElement) {
+export function isPresentedOutsidePage(media: HTMLMediaElement) {
   const doc = media.ownerDocument as Document & { webkitFullscreenElement?: Element | null };
   const fullscreen = doc.fullscreenElement ?? doc.webkitFullscreenElement ?? null;
   if (fullscreen && (fullscreen === media || fullscreen.contains(media))) return true;

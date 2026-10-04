@@ -147,6 +147,15 @@ playback are left alone. Turn it off with `<FeedPost pauseVideosWhenHidden={fals
 or `<PostMedia pauseWhenHidden={false} />`. Browsers without IntersectionObserver
 just skip it.
 
+Only one video plays at a time. When a video starts, any other video the library
+rendered that is still playing pauses, whether it sits in the same carousel or
+in another post. Nothing is resumed or started. A video shown fullscreen or in
+picture-in-picture keeps playing when another one starts, while a video started
+in fullscreen does pause the others. Turn it off with
+`<FeedPost pauseOtherVideosOnPlay={false} />` or `<PostMedia pauseOthersOnPlay={false} />`.
+A video with it off is left out both ways: it doesn't pause others and they
+don't pause it.
+
 ### `usePauseWhenHidden`
 
 The same behaviour for a video you render yourself, e.g. through
@@ -168,6 +177,28 @@ function MyVideo({ src }: { src: string }) {
 
 The element is read when the component mounts, so keep the same `<video>` for
 the component's lifetime.
+
+### `usePauseOthersOnPlay`
+
+Adds a video you render yourself to the one-at-a-time group. Combine it with
+`usePauseWhenHidden` to match the built-in videos:
+
+```tsx
+import { useRef } from 'react';
+import { usePauseOthersOnPlay, usePauseWhenHidden } from 'react-social-feed';
+
+function MyVideo({ src }: { src: string }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  usePauseWhenHidden(ref);
+  usePauseOthersOnPlay(ref, { enabled: true });
+  return <video ref={ref} src={src} controls playsInline />;
+}
+```
+
+The group covers every element using the hook on the page, built-in videos
+included, with no provider needed. Leave muted background loops out of it:
+starting a video would pause them, and they would pause the viewer's video when
+they start.
 
 ## Who liked it
 
@@ -327,7 +358,7 @@ import {
 | `PostRoot` | `<article>` plus the context. Takes `icons`. Children may be a function of the post state. |
 | `PostHeader` | Avatar, author and timestamp by default. |
 | `PostAvatar`, `PostAuthor`, `PostTimestamp`, `PostTitle` | The individual header parts. `PostTitle` accepts `as`. |
-| `PostMedia` | Scroll-snap carousel. Props: `aspectRatio`, `renderItem`, `likeOnDoubleTap`, `loading`, `pauseWhenHidden`. |
+| `PostMedia` | Scroll-snap carousel. Props: `aspectRatio`, `renderItem`, `likeOnDoubleTap`, `loading`, `pauseWhenHidden`, `pauseOthersOnPlay`. |
 | `PostMediaItem`, `PostMediaPrevButton`, `PostMediaNextButton`, `PostMediaCounter`, `PostMediaIndicators` | Carousel parts. The default overlay is arrows plus a "2 / 5" counter; `PostMediaIndicators` draws dots instead. Pass children to `PostMedia` to replace the overlay. |
 | `PostActions` | Like, comment and (pushed to the end) favorite and share by default. Favorite only appears when the root has `onFavoriteChange`. |
 | `PostAction`, `PostActionSpacer` | The shared action button, and a spacer that pushes later actions to the end. |

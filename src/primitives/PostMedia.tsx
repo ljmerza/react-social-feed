@@ -2,6 +2,7 @@ import { useRef, type ComponentPropsWithoutRef, type PointerEvent, type ReactNod
 import { usePostContext } from '../context/PostContext';
 import { usePostIcons } from '../context/PostIconsContext';
 import type { SocialMedia } from '../types';
+import { usePauseOthersOnPlay } from '../usePauseOthersOnPlay';
 import { usePauseWhenHidden } from '../usePauseWhenHidden';
 import type { PostState } from '../usePostState';
 import { cx } from '../utils';
@@ -27,6 +28,12 @@ export interface PostMediaProps extends Omit<ComponentPropsWithoutRef<'div'>, 'c
    * items only; with `renderItem`, use `usePauseWhenHidden` on your own video.
    */
   pauseWhenHidden?: boolean;
+  /**
+   * When a video starts playing, pause any other library video that is playing,
+   * in this post or any other. Default true. Applies to the built-in items only;
+   * with `renderItem`, use `usePauseOthersOnPlay` on your own video.
+   */
+  pauseOthersOnPlay?: boolean;
   renderItem?: (media: SocialMedia, index: number, state: PostState) => ReactNode;
   /** Overlays rendered above the slides. Defaults to prev/next buttons and a position counter. */
   children?: ReactNode;
@@ -37,6 +44,7 @@ export function PostMedia({
   likeOnDoubleTap = true,
   loading = 'lazy',
   pauseWhenHidden = true,
+  pauseOthersOnPlay = true,
   renderItem,
   children,
   className,
@@ -100,7 +108,12 @@ export function PostMedia({
             {renderItem ? (
               renderItem(media, index, state)
             ) : (
-              <PostMediaItem media={media} loading={loading} pauseWhenHidden={pauseWhenHidden} />
+              <PostMediaItem
+                media={media}
+                loading={loading}
+                pauseWhenHidden={pauseWhenHidden}
+                pauseOthersOnPlay={pauseOthersOnPlay}
+              />
             )}
           </div>
         ))}
@@ -129,12 +142,27 @@ export interface PostMediaItemProps {
   loading?: 'lazy' | 'eager';
   /** Pause a playing video once it is mostly out of view. Default true. */
   pauseWhenHidden?: boolean;
+  /** Pause other playing library videos when this one starts. Default true. */
+  pauseOthersOnPlay?: boolean;
   className?: string;
 }
 
-export function PostMediaItem({ media, loading = 'lazy', pauseWhenHidden = true, className }: PostMediaItemProps) {
+export function PostMediaItem({
+  media,
+  loading = 'lazy',
+  pauseWhenHidden = true,
+  pauseOthersOnPlay = true,
+  className
+}: PostMediaItemProps) {
   if (media.type === 'video') {
-    return <PostMediaVideo media={media} pauseWhenHidden={pauseWhenHidden} className={className} />;
+    return (
+      <PostMediaVideo
+        media={media}
+        pauseWhenHidden={pauseWhenHidden}
+        pauseOthersOnPlay={pauseOthersOnPlay}
+        className={className}
+      />
+    );
   }
 
   return (
@@ -155,14 +183,17 @@ export function PostMediaItem({ media, loading = 'lazy', pauseWhenHidden = true,
 function PostMediaVideo({
   media,
   pauseWhenHidden,
+  pauseOthersOnPlay,
   className
 }: {
   media: SocialMedia;
   pauseWhenHidden: boolean;
+  pauseOthersOnPlay: boolean;
   className?: string;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   usePauseWhenHidden(videoRef, { enabled: pauseWhenHidden });
+  usePauseOthersOnPlay(videoRef, { enabled: pauseOthersOnPlay });
 
   return (
     <video
